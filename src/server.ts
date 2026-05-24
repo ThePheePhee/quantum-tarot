@@ -26,6 +26,7 @@ const server = createServer(async (request, response) => {
     if (request.method === "GET" && url.pathname === "/api/status") {
       return sendJson(response, {
         seeded: rng !== null,
+        qrngConfigured: Boolean(process.env.ANU_QRNG_API_KEY),
         seedVersion,
         lastReseededAt: lastReseededAt || null,
         minSecondsBetweenReseeds: reseedCooldownMs / 1000

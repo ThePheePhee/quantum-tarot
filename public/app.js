@@ -38,6 +38,8 @@ async function refreshStatus() {
   drawButton.disabled = !seeded;
   statusText.textContent = status.seeded
     ? `Seed ${status.seedVersion} is ready.`
+    : status.qrngConfigured
+      ? "Quantum key configured. Awaiting seed."
     : "Awaiting quantum seed.";
 }
 
