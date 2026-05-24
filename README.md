@@ -26,6 +26,18 @@ Type-check:
 npm run check
 ```
 
+Start the local web app:
+
+```bash
+npm run dev
+```
+
+Then open:
+
+```text
+http://localhost:4173
+```
+
 Draw one card from the ANU QRNG:
 
 ```bash
@@ -48,7 +60,13 @@ You need:
 - Permission for the app/backend to call `https://api.quantumnumbers.anu.edu.au`.
 - A fallback plan for outages or rate limits before using this in production.
 
-Create a local `.env` from `.env.example` when we add app runtime config, or export the key directly before running scripts:
+Create a local `.env` from `.env.example`:
+
+```bash
+ANU_QRNG_API_KEY=your_api_key_here
+```
+
+Or export the key directly before running scripts:
 
 ```bash
 set ANU_QRNG_API_KEY=your_api_key_here
@@ -61,6 +79,8 @@ PowerShell users can set it for the current terminal like this:
 $env:ANU_QRNG_API_KEY = "your_api_key_here"
 npm.cmd run demo:draw
 ```
+
+The web app uses one QRNG request only when you press **Reseed quantum randomness**. Three-card spreads are then drawn from a local seeded generator so normal draws do not spend additional QRNG quota.
 
 For a browser-first app, the safest production shape is usually:
 

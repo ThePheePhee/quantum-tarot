@@ -7,7 +7,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
-    "demo:draw": "node --loader ts-node/esm src/demo/draw-card.ts"
+    "demo:draw": "node --loader ts-node/esm src/demo/draw-card.ts",
+    "dev": "node --loader ts-node/esm src/server.ts",
+    "start": "node dist/server.js"
   },
   "devDependencies": {
     "@types/node": "^22.15.21",
