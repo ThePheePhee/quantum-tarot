@@ -80,41 +80,62 @@ h1 {
 }
 
 .sigil {
-  position: relative;
   flex: 0 0 auto;
   width: clamp(72px, 16vw, 150px);
   aspect-ratio: 1;
-  border: 1px solid var(--line);
-  border-radius: 50%;
+  filter: drop-shadow(0 0 16px rgba(202, 164, 90, 0.14));
 }
 
-.sigil::before,
-.sigil::after,
-.sigil span::before,
-.sigil span::after {
-  content: "";
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 72%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  transform-origin: left center;
+.sigil-aura,
+.orbit {
+  fill: none;
+  stroke: rgba(202, 164, 90, 0.34);
 }
 
-.sigil::before {
-  transform: rotate(0deg) translateX(-50%);
+.sigil-aura {
+  stroke-width: 1;
 }
 
-.sigil::after {
-  transform: rotate(60deg) translateX(-50%);
+.sigil-glow {
+  fill: url("#sigilGlow");
 }
 
-.sigil span::before {
-  transform: rotate(120deg) translateX(-50%);
+.hexagram {
+  fill: none;
+  stroke: var(--gold);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.8;
 }
 
-.sigil span::after {
-  transform: rotate(-60deg) translateX(-50%);
+.orbit {
+  stroke-width: 1.1;
+  stroke-dasharray: 12 8;
+  transform-origin: 100px 100px;
+}
+
+.orbit-one {
+  transform: rotate(0deg);
+}
+
+.orbit-two {
+  transform: rotate(60deg);
+}
+
+.orbit-three {
+  transform: rotate(-60deg);
+}
+
+.quantum-core {
+  fill: var(--ink);
+  stroke: var(--red);
+  stroke-width: 2;
+}
+
+.quantum-node {
+  fill: var(--gold);
+  stroke: #080706;
+  stroke-width: 1.5;
 }
 
 .controls {

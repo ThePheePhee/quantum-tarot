@@ -13,9 +13,25 @@
           <p class="kicker">Quantum-seeded local oracle</p>
           <h1>Three Card Spread</h1>
         </div>
-        <div class="sigil" aria-hidden="true">
-          <span></span>
-        </div>
+        <svg class="sigil" viewBox="0 0 200 200" aria-hidden="true">
+          <defs>
+            <radialGradient id="sigilGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#f4ecd8" stop-opacity="0.34"></stop>
+              <stop offset="44%" stop-color="#caa45a" stop-opacity="0.16"></stop>
+              <stop offset="100%" stop-color="#030303" stop-opacity="0"></stop>
+            </radialGradient>
+          </defs>
+          <circle class="sigil-aura" cx="100" cy="100" r="92"></circle>
+          <circle class="sigil-glow" cx="100" cy="100" r="70"></circle>
+          <path class="hexagram" d="M100 16 L154 140 L34 62 L166 62 L46 140 L100 184 Z"></path>
+          <ellipse class="orbit orbit-one" cx="100" cy="100" rx="70" ry="22"></ellipse>
+          <ellipse class="orbit orbit-two" cx="100" cy="100" rx="70" ry="22"></ellipse>
+          <ellipse class="orbit orbit-three" cx="100" cy="100" rx="70" ry="22"></ellipse>
+          <circle class="quantum-core" cx="100" cy="100" r="7"></circle>
+          <circle class="quantum-node node-one" cx="166" cy="94" r="3.5"></circle>
+          <circle class="quantum-node node-two" cx="62" cy="119" r="3.5"></circle>
+          <circle class="quantum-node node-three" cx="111" cy="50" r="3.5"></circle>
+        </svg>
       </section>
 
       <section class="controls" aria-label="Reading controls">
