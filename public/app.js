@@ -7,8 +7,16 @@ const receiptSource = document.querySelector("#receiptSource");
 const receiptTime = document.querySelector("#receiptTime");
 const receiptEntropy = document.querySelector("#receiptEntropy");
 const receiptSeed = document.querySelector("#receiptSeed");
+const receiptLocalSum = document.querySelector("#receiptLocalSum");
+const receiptTiming = document.querySelector("#receiptTiming");
+const receiptQuantum = document.querySelector("#receiptQuantum");
+const phraseInput = document.querySelector("#phraseInput");
+const localSeedButton = document.querySelector("#localSeedButton");
+const combinedSeedButton = document.querySelector("#combinedSeedButton");
+const localStatus = document.querySelector("#localStatus");
 
 const positions = ["Past", "Present", "Future"];
+const timingMs = [];
 let seeded = false;
 
 await refreshStatus();
@@ -36,6 +44,28 @@ reseedButton.addEventListener("click", async () => {
   }
 });
 
+phraseInput.addEventListener("keydown", (event) => {
+  if (event.key.length === 1) {
+    timingMs.push(Math.trunc(event.timeStamp));
+  }
+});
+
+phraseInput.addEventListener("input", () => {
+  if (phraseInput.value.length === 0) {
+    timingMs.length = 0;
+  }
+
+  updateLocalControls();
+});
+
+localSeedButton.addEventListener("click", async () => {
+  await requestLocalSeed("/api/reseed-local", localSeedButton, "Local timing seed received.");
+});
+
+combinedSeedButton.addEventListener("click", async () => {
+  await requestLocalSeed("/api/reseed-combined", combinedSeedButton, "Combined local and quantum seed received.");
+});
+
 async function refreshStatus() {
   const response = await fetch("/api/status");
   const status = await response.json();
@@ -58,6 +88,33 @@ async function requestDraw() {
     statusText.textContent = `Spread drawn from seed ${result.seedVersion}.`;
   } catch (error) {
     statusText.textContent = error.message;
+  }
+}
+
+async function requestLocalSeed(path, button, successMessage) {
+  const payload = localSeedPayload();
+
+  if (!payload) {
+    localStatus.textContent = "Type a phrase with at least 10 letters first.";
+    return;
+  }
+
+  setBusy(button, true);
+  statusText.textContent = path.includes("combined")
+    ? "Combining local timing with ANU Quantum Numbers..."
+    : "Seeding from local keystroke timing...";
+
+  try {
+    const result = await postJson(path, payload);
+    seeded = true;
+    drawButton.disabled = false;
+    statusText.textContent = successMessage;
+    renderReceipt(result);
+  } catch (error) {
+    statusText.textContent = error.message;
+  } finally {
+    setBusy(button, false);
+    updateLocalControls();
   }
 }
 
@@ -94,8 +151,12 @@ function renderSpread(cards) {
   );
 }
 
-async function postJson(path) {
-  const response = await fetch(path, { method: "POST" });
+async function postJson(path, body) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: body ? { "content-type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined
+  });
   const payload = await response.json();
 
   if (!response.ok) {
@@ -110,6 +171,35 @@ function setBusy(button, isBusy) {
   button.setAttribute("aria-busy", String(isBusy));
 }
 
+function updateLocalControls() {
+  const letterCount = countLetters(phraseInput.value);
+  const ready = letterCount >= 10 && timingMs.length >= 10;
+  localSeedButton.disabled = !ready;
+  combinedSeedButton.disabled = !ready;
+  localStatus.textContent = `${letterCount} letters captured. ${timingMs.length} keystroke timings recorded.`;
+}
+
+function localSeedPayload() {
+  const letterCount = countLetters(phraseInput.value);
+
+  if (letterCount < 10 || timingMs.length < 10) {
+    return null;
+  }
+
+  const timings = [...timingMs];
+  const timingSum = timings.reduce((sum, value) => sum + value, 0);
+
+  return {
+    letterCount,
+    timingMs: timings,
+    timingSum
+  };
+}
+
+function countLetters(value) {
+  return value.replace(/[^a-z]/gi, "").length;
+}
+
 function renderReceipt(receipt) {
   if (!receipt) {
     receiptState.textContent = "Not received yet";
@@ -117,16 +207,26 @@ function renderReceipt(receipt) {
     receiptTime.textContent = "--";
     receiptEntropy.textContent = "--";
     receiptSeed.textContent = "--";
+    receiptLocalSum.textContent = "--";
+    receiptTiming.textContent = "--";
+    receiptQuantum.textContent = "--";
     return;
   }
 
-  receiptState.textContent = `Received seed ${receipt.seedVersion}`;
+  receiptState.textContent = `${titleCase(receipt.mode)} seed ${receipt.seedVersion} received`;
   receiptSource.textContent = receipt.source;
   receiptTime.textContent = new Date(receipt.receivedAt).toLocaleString();
   receiptEntropy.textContent = `${receipt.entropyBytesUsed} bytes`;
   receiptSeed.textContent = formatSeedHex(receipt.seedHex);
+  receiptLocalSum.textContent = receipt.localTimingSum ? String(receipt.localTimingSum) : "--";
+  receiptTiming.textContent = receipt.localTimingMs?.length ? receipt.localTimingMs.join(" + ") : "--";
+  receiptQuantum.textContent = receipt.quantumSeedHex ? formatSeedHex(receipt.quantumSeedHex) : "--";
 }
 
 function formatSeedHex(seedHex) {
   return seedHex.match(/.{1,2}/g)?.join(" ") ?? seedHex;
+}
+
+function titleCase(value) {
+  return value ? value.slice(0, 1).toUpperCase() + value.slice(1) : "Random";
 }

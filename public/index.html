@@ -40,9 +40,21 @@
         <p class="status" id="statusText">Awaiting quantum seed.</p>
       </section>
 
+      <section class="local-randomness" aria-label="Local randomness controls">
+        <label for="phraseInput">
+          <span>Local randomness phrase</span>
+          <input id="phraseInput" type="text" autocomplete="off" spellcheck="false" placeholder="Type at least 10 letters">
+        </label>
+        <div class="local-actions">
+          <button class="secondary" id="localSeedButton" type="button" disabled>Seed local randomness</button>
+          <button class="secondary" id="combinedSeedButton" type="button" disabled>Combine local + quantum</button>
+        </div>
+        <p class="local-status" id="localStatus">0 letters captured. Timing begins as you type.</p>
+      </section>
+
       <section class="receipt" id="receiptPanel" aria-live="polite">
         <div>
-          <p class="receipt-label">Quantum randomness</p>
+          <p class="receipt-label">Randomness receipt</p>
           <p class="receipt-state" id="receiptState">Not received yet</p>
         </div>
         <dl class="receipt-grid">
@@ -61,6 +73,18 @@
           <div>
             <dt>Seed bytes</dt>
             <dd><code id="receiptSeed">--</code></dd>
+          </div>
+          <div>
+            <dt>Local timing sum</dt>
+            <dd id="receiptLocalSum">--</dd>
+          </div>
+          <div>
+            <dt>Timing ms</dt>
+            <dd><code id="receiptTiming">--</code></dd>
+          </div>
+          <div>
+            <dt>Quantum bytes</dt>
+            <dd><code id="receiptQuantum">--</code></dd>
           </div>
         </dl>
       </section>
