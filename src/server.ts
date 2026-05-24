@@ -15,9 +15,19 @@ const port = Number(process.env.PORT ?? 4173);
 const reseedCooldownMs = 1100;
 const seedLengthBytes = 16;
 
+interface QuantumReceipt {
+  readonly source: string;
+  readonly seedVersion: number;
+  readonly receivedAt: number;
+  readonly entropyBytesUsed: number;
+  readonly seedHex: string;
+  readonly seedBytes: readonly number[];
+}
+
 let rng: SeededRng | null = null;
 let seedVersion = 0;
 let lastReseededAt = 0;
+let latestReceipt: QuantumReceipt | null = null;
 
 const server = createServer(async (request, response) => {
   try {
@@ -29,7 +39,8 @@ const server = createServer(async (request, response) => {
         qrngConfigured: Boolean(process.env.ANU_QRNG_API_KEY),
         seedVersion,
         lastReseededAt: lastReseededAt || null,
-        minSecondsBetweenReseeds: reseedCooldownMs / 1000
+        minSecondsBetweenReseeds: reseedCooldownMs / 1000,
+        latestReceipt
       });
     }
 
@@ -72,13 +83,19 @@ async function handleReseed(response: ServerResponse): Promise<void> {
     rng = createSeededRng(seedBytes);
     seedVersion += 1;
     lastReseededAt = now;
+    latestReceipt = {
+      source: provider.name,
+      seedVersion,
+      receivedAt: lastReseededAt,
+      entropyBytesUsed: seedLengthBytes,
+      seedHex: bytesToHex(seedBytes),
+      seedBytes: Array.from(seedBytes)
+    };
 
     return sendJson(response, {
       seeded: true,
-      seedVersion,
-      lastReseededAt,
-      entropyBytesUsed: seedLengthBytes,
-      source: provider.name
+      ...latestReceipt,
+      lastReseededAt
     });
   } catch (error) {
     if (error instanceof QrngError) {
@@ -136,4 +153,8 @@ function contentType(pathname: string): string {
     default:
       return "application/octet-stream";
   }
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

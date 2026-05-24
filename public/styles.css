@@ -158,6 +158,66 @@ h1 {
   text-align: right;
 }
 
+.receipt {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.6fr) minmax(0, 1.4fr);
+  gap: 1rem;
+  margin: 0 0 24px;
+  padding: 16px;
+  border: 1px solid rgba(202, 164, 90, 0.24);
+  border-radius: 7px;
+  background:
+    linear-gradient(135deg, rgba(202, 164, 90, 0.08), transparent 42%),
+    rgba(5, 4, 3, 0.62);
+}
+
+.receipt-label,
+.receipt-state,
+.receipt-grid dt,
+.receipt-grid dd {
+  margin: 0;
+}
+
+.receipt-label,
+.receipt-grid dt {
+  color: var(--muted);
+  font: 700 0.68rem/1.4 system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.receipt-state {
+  margin-top: 0.25rem;
+  color: var(--gold);
+  font-size: clamp(1.2rem, 2vw, 1.7rem);
+}
+
+.receipt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem 1rem;
+  margin: 0;
+}
+
+.receipt-grid div:last-child {
+  grid-column: 1 / -1;
+}
+
+.receipt-grid dd {
+  margin-top: 0.2rem;
+  color: var(--ink);
+  font: 600 0.9rem/1.5 system-ui, sans-serif;
+}
+
+.receipt code {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: #f6dca0;
+  font: 600 0.9rem/1.6 "Consolas", "Courier New", monospace;
+  letter-spacing: 0;
+}
+
 .spread {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -223,6 +283,11 @@ h1 {
   .status {
     margin-left: 0;
     text-align: left;
+  }
+
+  .receipt,
+  .receipt-grid {
+    grid-template-columns: 1fr;
   }
 
   .spread {

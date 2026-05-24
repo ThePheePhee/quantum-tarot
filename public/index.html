@@ -40,6 +40,31 @@
         <p class="status" id="statusText">Awaiting quantum seed.</p>
       </section>
 
+      <section class="receipt" id="receiptPanel" aria-live="polite">
+        <div>
+          <p class="receipt-label">Quantum randomness</p>
+          <p class="receipt-state" id="receiptState">Not received yet</p>
+        </div>
+        <dl class="receipt-grid">
+          <div>
+            <dt>Source</dt>
+            <dd id="receiptSource">--</dd>
+          </div>
+          <div>
+            <dt>Received</dt>
+            <dd id="receiptTime">--</dd>
+          </div>
+          <div>
+            <dt>Entropy</dt>
+            <dd id="receiptEntropy">--</dd>
+          </div>
+          <div>
+            <dt>Seed bytes</dt>
+            <dd><code id="receiptSeed">--</code></dd>
+          </div>
+        </dl>
+      </section>
+
       <section class="spread" id="spread" aria-live="polite">
         <article class="card-slot">
           <div class="card-back"><span>Past</span></div>

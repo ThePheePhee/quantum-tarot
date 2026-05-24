@@ -2,6 +2,11 @@ const drawButton = document.querySelector("#drawButton");
 const reseedButton = document.querySelector("#reseedButton");
 const statusText = document.querySelector("#statusText");
 const spread = document.querySelector("#spread");
+const receiptState = document.querySelector("#receiptState");
+const receiptSource = document.querySelector("#receiptSource");
+const receiptTime = document.querySelector("#receiptTime");
+const receiptEntropy = document.querySelector("#receiptEntropy");
+const receiptSeed = document.querySelector("#receiptSeed");
 
 const positions = ["Past", "Present", "Future"];
 let seeded = false;
@@ -23,6 +28,7 @@ reseedButton.addEventListener("click", async () => {
     seeded = true;
     drawButton.disabled = false;
     statusText.textContent = `Seed ${result.seedVersion} received from ${result.source}.`;
+    renderReceipt(result);
   } catch (error) {
     statusText.textContent = error.message;
   } finally {
@@ -41,6 +47,8 @@ async function refreshStatus() {
     : status.qrngConfigured
       ? "Quantum key configured. Awaiting seed."
     : "Awaiting quantum seed.";
+
+  renderReceipt(status.latestReceipt);
 }
 
 async function requestDraw() {
@@ -100,4 +108,25 @@ async function postJson(path) {
 function setBusy(button, isBusy) {
   button.disabled = button === drawButton ? isBusy || !seeded : isBusy;
   button.setAttribute("aria-busy", String(isBusy));
+}
+
+function renderReceipt(receipt) {
+  if (!receipt) {
+    receiptState.textContent = "Not received yet";
+    receiptSource.textContent = "--";
+    receiptTime.textContent = "--";
+    receiptEntropy.textContent = "--";
+    receiptSeed.textContent = "--";
+    return;
+  }
+
+  receiptState.textContent = `Received seed ${receipt.seedVersion}`;
+  receiptSource.textContent = receipt.source;
+  receiptTime.textContent = new Date(receipt.receivedAt).toLocaleString();
+  receiptEntropy.textContent = `${receipt.entropyBytesUsed} bytes`;
+  receiptSeed.textContent = formatSeedHex(receipt.seedHex);
+}
+
+function formatSeedHex(seedHex) {
+  return seedHex.match(/.{1,2}/g)?.join(" ") ?? seedHex;
 }
