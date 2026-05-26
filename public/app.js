@@ -85,12 +85,12 @@ async function refreshStatus() {
   const status = await response.json();
 
   seeded = status.seeded;
-  drawButton.disabled = !seeded;
   statusText.textContent = status.seeded
     ? `Seed ${status.seedVersion} is ready.`
     : "Awaiting local entropy seed.";
 
   renderReceipt(status.latestReceipt);
+  syncDrawControls();
 }
 
 async function requestDraw() {
@@ -119,7 +119,6 @@ async function requestLocalSeed(path, button, successMessage) {
   try {
     const result = await postJson(path, payload);
     seeded = true;
-    drawButton.disabled = false;
     statusText.textContent = successMessage;
     renderReceipt(result);
   } catch (error) {
@@ -127,6 +126,7 @@ async function requestLocalSeed(path, button, successMessage) {
   } finally {
     setBusy(button, false);
     updateLocalControls();
+    syncDrawControls();
   }
 }
 
@@ -364,30 +364,62 @@ replacementToggle.addEventListener("change", syncDrawControls);
 
 function normalizeDrawSettings() {
   const replacement = replacementToggle.checked;
-  const decks = positiveInteger(deckCountInput.value, 1, 20);
-  const requestedCount = positiveInteger(drawCountInput.value, 3, Number.POSITIVE_INFINITY);
-  const max = replacement ? Number.POSITIVE_INFINITY : decks * 78;
-  const count = Math.min(requestedCount, max);
+  const decks = parsePositiveInteger(deckCountInput.value);
+  const requestedCount = parsePositiveInteger(drawCountInput.value);
 
-  return { replacement, decks, count };
+  if (!decks || decks > 20) {
+    throw new Error("Deck count must be an integer between 1 and 20.");
+  }
+
+  if (!requestedCount) {
+    throw new Error("Draw count must be a positive integer.");
+  }
+
+  const max = replacement ? Number.POSITIVE_INFINITY : decks * 78;
+
+  if (requestedCount > max) {
+    throw new Error(`With ${decks} deck${decks === 1 ? "" : "s"} without replacement, the maximum draw is ${max} cards.`);
+  }
+
+  return { replacement, decks, count: requestedCount };
 }
 
 function syncDrawControls() {
-  const settings = normalizeDrawSettings();
-  deckCountInput.value = String(settings.decks);
-  drawCountInput.value = String(settings.count);
-  drawButton.textContent = `Draw ${settings.count} ${settings.count === 1 ? "card" : "cards"}`;
+  const decks = parsePositiveInteger(deckCountInput.value);
+  const count = parsePositiveInteger(drawCountInput.value);
+  const replacement = replacementToggle.checked;
+  const max = replacement || !decks ? Number.POSITIVE_INFINITY : decks * 78;
+  const valid = Boolean(decks && decks <= 20 && count && count <= max);
+
+  drawButton.disabled = !seeded || !valid;
+  drawButton.title = valid ? "" : drawControlMessage(decks, count, max, replacement);
+  drawButton.textContent = count
+    ? `Draw ${count} ${count === 1 ? "card" : "cards"}`
+    : "Draw cards";
 }
 
-function positiveInteger(value, fallback, max) {
-  const digits = String(value).replace(/[^\d]/g, "");
-  const numberValue = Number(digits);
+function parsePositiveInteger(value) {
+  const trimmed = String(value).trim();
 
-  if (!Number.isSafeInteger(numberValue) || numberValue < 1) {
-    return fallback;
+  if (!trimmed || !/^\d+$/.test(trimmed)) {
+    return null;
   }
 
-  return Math.min(numberValue, max);
+  const numberValue = Number(trimmed);
+
+  if (!Number.isSafeInteger(numberValue) || numberValue < 1) {
+    return null;
+  }
+
+  return numberValue;
+}
+
+function drawControlMessage(decks, count, max, replacement) {
+  if (!decks) return "Enter a deck count.";
+  if (decks > 20) return "Use 20 decks or fewer.";
+  if (!count) return "Enter a card count.";
+  if (!replacement && count > max) return `Maximum is ${max} cards without replacement.`;
+  return "";
 }
 
 function createActivationModel(correspondences) {
@@ -407,14 +439,15 @@ function createActivationModel(correspondences) {
     seenPerCard.set(cardKey, seen);
   }
 
-  const max = Math.max(1, ...counts.values());
+  const max = counts.size ? Math.max(...counts.values()) : 0;
 
   return {
     count(key) {
       return counts.get(key) ?? 0;
     },
+    max,
     strength(key) {
-      return ((counts.get(key) ?? 0) / max).toFixed(2);
+      return ((counts.get(key) ?? 0) / Math.max(1, max)).toFixed(2);
     },
     heat(key) {
       const count = counts.get(key) ?? 0;
@@ -429,6 +462,36 @@ function heatColor(ratio) {
   if (ratio >= 0.42) return "#ffd23f";
   if (ratio >= 0.22) return "#9ee66e";
   return "#45c7ff";
+}
+
+function heatLegend(max) {
+  const steps = heatLegendSteps(max);
+
+  return `<article class="diagram-panel heatmap-legend"><h3>Activation Heat</h3><div class="legend-scale">
+    ${steps.length
+      ? steps.map((step) => `<div><span style="--heat:${step.color}"></span><small>${step.label}</small></div>`).join("")
+      : "<p>No activations yet</p>"}
+  </div></article>`;
+}
+
+function heatLegendSteps(max) {
+  const groups = [];
+
+  for (let count = 1; count <= max; count += 1) {
+    const color = heatColor(count / max);
+    const group = groups.find((item) => item.color === color);
+
+    if (group) {
+      group.high = count;
+    } else {
+      groups.push({ color, low: count, high: count });
+    }
+  }
+
+  return groups.map((group) => ({
+    color: group.color,
+    label: group.low === group.high ? `${group.low}` : `${group.low}-${group.high}`
+  }));
 }
 
 function activationKeys(correspondence) {
@@ -544,6 +607,7 @@ const pentagramPoints = [
 
 function renderDashboardVisuals(activation) {
   dashboardVisuals.innerHTML = `
+    ${heatLegend(activation.max)}
     ${treeOfLifeSvg(activation)}
     ${zodiacSvg(activation)}
     ${planetaryFrame(activation)}

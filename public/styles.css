@@ -452,30 +452,9 @@ h1 {
   stroke-width: calc(2px + 2.4px * var(--strength));
 }
 
-.diagram-panel g.active::after,
-.planet-frame .active::after,
-.hebrew-grid .active::after {
-  content: attr(data-count);
-}
-
 .planet-frame div,
 .hebrew-grid div {
   position: relative;
-}
-
-.planet-frame .active::after,
-.hebrew-grid .active::after {
-  position: absolute;
-  top: -6px;
-  right: -3px;
-  min-width: 1.2rem;
-  padding: 2px 4px;
-  border: 1px solid var(--heat);
-  border-radius: 999px;
-  color: var(--ink);
-  background: rgba(111, 20, 24, 0.92);
-  font: 700 0.62rem/1 system-ui, sans-serif;
-  text-align: center;
 }
 
 .diagram-panel text {
@@ -568,6 +547,46 @@ h1 {
   color: var(--muted);
   font: 700 0.54rem/1 system-ui, sans-serif;
   letter-spacing: 0;
+}
+
+.heatmap-legend {
+  display: grid;
+  align-content: center;
+}
+
+.legend-scale {
+  display: grid;
+  gap: 9px;
+}
+
+.legend-scale div {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.legend-scale span {
+  display: block;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--heat);
+  box-shadow: 0 0 14px var(--heat);
+}
+
+.legend-scale small {
+  color: var(--muted);
+  font: 700 0.68rem/1 system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.legend-scale p {
+  margin: 0;
+  color: var(--muted);
+  font: 700 0.68rem/1.4 system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .correspondence-list {
