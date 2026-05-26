@@ -511,61 +511,48 @@ function createActivationModel(correspondences) {
     seenPerCard.set(cardKey, seen);
   }
 
-  const max = counts.size ? Math.max(...counts.values()) : 0;
+  const uniqueCounts = Array.from(new Set(counts.values())).sort((left, right) => left - right);
+  const max = uniqueCounts.at(-1) ?? 0;
+  const heatScale = uniqueCounts.map((count, index) => ({
+    count,
+    color: discreteHeatColor(index, uniqueCounts.length)
+  }));
+  const heatByCount = new Map(heatScale.map((item) => [item.count, item.color]));
 
   return {
     count(key) {
       return counts.get(key) ?? 0;
     },
+    heatScale,
     max,
     strength(key) {
       return ((counts.get(key) ?? 0) / Math.max(1, max)).toFixed(2);
     },
     heat(key) {
       const count = counts.get(key) ?? 0;
-      return count ? heatColor(count / max) : "rgba(202, 164, 90, 0.22)";
+      return count ? heatByCount.get(count) : "rgba(202, 164, 90, 0.22)";
     }
   };
 }
 
-function heatColor(ratio) {
-  if (ratio >= 0.82) return "#ff2f2f";
-  if (ratio >= 0.62) return "#ff8a1d";
-  if (ratio >= 0.42) return "#ffd23f";
-  if (ratio >= 0.22) return "#9ee66e";
-  return "#45c7ff";
+function discreteHeatColor(index, total) {
+  const ratio = total <= 1 ? 1 : index / (total - 1);
+  const hue = 205 - ratio * 205;
+  const lightness = 60 - ratio * 8;
+  return `hsl(${hue.toFixed(0)} 92% ${lightness.toFixed(0)}%)`;
 }
 
-function heatLegend(max) {
-  const steps = heatLegendSteps(max);
+function heatLegend(heatScale) {
+  const steps = heatScale.map(({ count, color }) => ({
+    color,
+    label: `${count} ${count === 1 ? "activation" : "activations"}`
+  }));
 
   return `<article class="heatmap-legend"><h3>Activation Heat</h3><div class="legend-scale">
     ${steps.length
       ? steps.map((step) => `<div><span style="--heat:${step.color}"></span><small>${step.label}</small></div>`).join("")
       : "<p>No activations yet</p>"}
   </div></article>`;
-}
-
-function heatLegendSteps(max) {
-  const groups = [];
-
-  for (let count = 1; count <= max; count += 1) {
-    const color = heatColor(count / max);
-    const group = groups.find((item) => item.color === color);
-
-    if (group) {
-      group.high = count;
-    } else {
-      groups.push({ color, low: count, high: count });
-    }
-  }
-
-  return groups.map((group) => ({
-    color: group.color,
-    label: group.low === group.high
-      ? `${group.low} ${group.low === 1 ? "activation" : "activations"}`
-      : `${group.low}-${group.high} activations`
-  }));
 }
 
 function activationKeys(correspondence) {
@@ -682,7 +669,7 @@ const pentagramPoints = [
 function renderDashboardVisuals(activation) {
   dashboardVisuals.innerHTML = `
     <section class="dashboard-overview">
-      ${heatLegend(activation.max)}
+      ${heatLegend(activation.heatScale)}
     </section>
     <section class="diagram-grid">
       ${treeOfLifeSvg(activation)}
