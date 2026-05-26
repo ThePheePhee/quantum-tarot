@@ -248,7 +248,7 @@ function titleCase(value) {
 function renderEntropySigil(seedHex) {
   if (!sigilPath) return;
 
-  const points = derangedSigilPoints(seedHex);
+  const points = seededSigilPoints(seedHex);
   const pathOrder = [1, 3, 6, 4, 2, 5, 1];
   const path = pathOrder.map((label, index) => {
     const point = points.get(label);
@@ -258,14 +258,22 @@ function renderEntropySigil(seedHex) {
   sigilPath.setAttribute("d", `${path} Z`);
 }
 
-function derangedSigilPoints(seedHex) {
-  const basePoints = circlePoints(6, 100, 100, 84);
+function seededSigilPoints(seedHex) {
   const labels = [1, 2, 3, 4, 5, 6];
-  const positions = seededDerangement(seedHex, labels.length);
   const output = new Map();
 
+  if (!seedHex) {
+    const basePoints = circlePoints(6, 100, 100, 84);
+    labels.forEach((label, index) => {
+      output.set(label, basePoints[index]);
+    });
+    return output;
+  }
+
+  const random = seededUnitRandom(seedHex);
+
   labels.forEach((label, index) => {
-    output.set(label, basePoints[positions[index]]);
+    output.set(label, pointOnCircle(random(), 100, 100, 84));
   });
 
   return output;
@@ -281,31 +289,20 @@ function circlePoints(count, cx, cy, radius) {
   });
 }
 
-function seededDerangement(seedHex, length) {
-  const random = seededUnitRandom(seedHex || "base-sigil");
-  const positions = Array.from({ length }, (_, index) => index);
-
-  for (let attempts = 0; attempts < 32; attempts += 1) {
-    const candidate = [...positions];
-
-    for (let index = candidate.length - 1; index > 0; index -= 1) {
-      const swapIndex = Math.floor(random() * (index + 1));
-      [candidate[index], candidate[swapIndex]] = [candidate[swapIndex], candidate[index]];
-    }
-
-    if (candidate.every((position, index) => position !== index)) {
-      return candidate;
-    }
-  }
-
-  return positions.map((_, index) => (index + 1) % length);
+function pointOnCircle(ratio, cx, cy, radius) {
+  const angle = -Math.PI / 2 + ratio * Math.PI * 2;
+  return {
+    x: cx + Math.cos(angle) * radius,
+    y: cy + Math.sin(angle) * radius
+  };
 }
 
 function seededUnitRandom(seedText) {
+  const bytes = seedText.match(/.{1,2}/g)?.map((value) => Number.parseInt(value, 16)) ?? [];
   let state = 2166136261;
 
-  for (const character of seedText) {
-    state ^= character.charCodeAt(0);
+  for (const byte of bytes.length ? bytes : Array.from(seedText, (character) => character.charCodeAt(0))) {
+    state ^= byte;
     state = Math.imul(state, 16777619) >>> 0;
   }
 

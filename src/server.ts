@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createHash } from "node:crypto";
 import { extname, join, normalize } from "node:path";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -14,7 +15,7 @@ loadEnv();
 const publicDir = fileURLToPath(new URL("../public/", import.meta.url));
 const port = Number(process.env.PORT ?? 4173);
 const reseedCooldownMs = 1100;
-const seedLengthBytes = 16;
+const seedLengthBytes = 32;
 
 interface SeedReceipt {
   readonly mode: "quantum" | "local" | "combined";
@@ -145,7 +146,7 @@ async function handleReseed(response: ServerResponse): Promise<void> {
 
 async function handleLocalReseed(request: IncomingMessage, response: ServerResponse): Promise<void> {
   const localSeed = await readLocalSeedRequest(request);
-  const seedBytes = localSeedBytes(localSeed.timingSum);
+  const seedBytes = localSeedBytes(localSeed);
 
   rng = createSeededRng(seedBytes);
   seedVersion += 1;
@@ -181,7 +182,7 @@ async function handleCombinedReseed(request: IncomingMessage, response: ServerRe
   }
 
   const localSeed = await readLocalSeedRequest(request);
-  const localBytes = localSeedBytes(localSeed.timingSum);
+  const localBytes = localSeedBytes(localSeed);
 
   try {
     const provider = new AnuQrngProvider();
@@ -385,18 +386,16 @@ function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function localSeedBytes(timingSum: number): Uint8Array {
-  const bytes = new Uint8Array(seedLengthBytes);
-  let state = timingSum >>> 0;
+function localSeedBytes(localSeed: { timingMs: number[]; timingSum: number; letterCount: number }): Uint8Array {
+  const payload = JSON.stringify({
+    version: 1,
+    source: "local-keystroke-timing",
+    letterCount: localSeed.letterCount,
+    timingSum: localSeed.timingSum,
+    timingMs: localSeed.timingMs
+  });
 
-  for (let index = 0; index < bytes.length; index += 1) {
-    state ^= state << 13;
-    state ^= state >>> 17;
-    state ^= state << 5;
-    bytes[index] = state & 0xff;
-  }
-
-  return bytes;
+  return new Uint8Array(createHash("sha256").update(payload).digest());
 }
 
 function normalizeDrawCount(value: unknown, replacement: boolean, decks: number): number {

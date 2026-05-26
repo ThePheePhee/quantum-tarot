@@ -7,10 +7,8 @@ export function createSeededRng(seedBytes: Uint8Array): SeededRng {
     throw new RangeError("Seeded RNG requires at least 16 bytes of seed material");
   }
 
-  let a = readUint32(seedBytes, 0);
-  let b = readUint32(seedBytes, 4);
-  let c = readUint32(seedBytes, 8);
-  let d = readUint32(seedBytes, 12);
+  const state = seedState(seedBytes);
+  let [a, b, c, d] = state;
 
   return {
     nextFloat() {
@@ -30,6 +28,23 @@ export function createSeededRng(seedBytes: Uint8Array): SeededRng {
       return (result >>> 0) / 4294967296;
     }
   };
+}
+
+function seedState(seedBytes: Uint8Array): [number, number, number, number] {
+  const state: [number, number, number, number] = [0x243f6a88, 0x85a308d3, 0x13198a2e, 0x03707344];
+
+  for (let index = 0; index < seedBytes.length; index += 1) {
+    const lane = index % state.length;
+    state[lane] ^= seedBytes[index] << ((index % 4) * 8);
+    state[lane] = Math.imul(state[lane] ^ (state[lane] >>> 16), 0x7feb352d) >>> 0;
+    state[lane] ^= state[(lane + 1) % state.length] >>> 7;
+  }
+
+  if (state.every((value) => value === 0)) {
+    state[0] = 1;
+  }
+
+  return state;
 }
 
 export function drawDistinctNumbers(rng: SeededRng, count: number, upperInclusive: number): number[] {
