@@ -11,6 +11,7 @@ const receiptEntropy = document.querySelector("#receiptEntropy");
 const receiptSeed = document.querySelector("#receiptSeed");
 const receiptLocalSum = document.querySelector("#receiptLocalSum");
 const receiptTiming = document.querySelector("#receiptTiming");
+const sigilPath = document.querySelector("#sigilPath");
 const phraseInput = document.querySelector("#phraseInput");
 const localSeedButton = document.querySelector("#localSeedButton");
 const localStatus = document.querySelector("#localStatus");
@@ -222,6 +223,7 @@ function renderReceipt(receipt) {
     receiptSeed.textContent = "--";
     receiptLocalSum.textContent = "--";
     receiptTiming.textContent = "--";
+    renderEntropySigil(null);
     return;
   }
 
@@ -232,6 +234,7 @@ function renderReceipt(receipt) {
   receiptSeed.textContent = formatSeedHex(receipt.seedHex);
   receiptLocalSum.textContent = receipt.localTimingSum ? String(receipt.localTimingSum) : "--";
   receiptTiming.textContent = receipt.localTimingMs?.length ? receipt.localTimingMs.join(" + ") : "--";
+  renderEntropySigil(receipt.seedHex);
 }
 
 function formatSeedHex(seedHex) {
@@ -240,6 +243,78 @@ function formatSeedHex(seedHex) {
 
 function titleCase(value) {
   return value ? value.slice(0, 1).toUpperCase() + value.slice(1) : "Random";
+}
+
+function renderEntropySigil(seedHex) {
+  if (!sigilPath) return;
+
+  const points = derangedSigilPoints(seedHex);
+  const pathOrder = [1, 3, 6, 4, 2, 5, 1];
+  const path = pathOrder.map((label, index) => {
+    const point = points.get(label);
+    return `${index === 0 ? "M" : "L"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+  }).join(" ");
+
+  sigilPath.setAttribute("d", `${path} Z`);
+}
+
+function derangedSigilPoints(seedHex) {
+  const basePoints = circlePoints(6, 100, 100, 84);
+  const labels = [1, 2, 3, 4, 5, 6];
+  const positions = seededDerangement(seedHex, labels.length);
+  const output = new Map();
+
+  labels.forEach((label, index) => {
+    output.set(label, basePoints[positions[index]]);
+  });
+
+  return output;
+}
+
+function circlePoints(count, cx, cy, radius) {
+  return Array.from({ length: count }, (_, index) => {
+    const angle = -Math.PI / 2 + index * (Math.PI * 2 / count);
+    return {
+      x: cx + Math.cos(angle) * radius,
+      y: cy + Math.sin(angle) * radius
+    };
+  });
+}
+
+function seededDerangement(seedHex, length) {
+  const random = seededUnitRandom(seedHex || "base-sigil");
+  const positions = Array.from({ length }, (_, index) => index);
+
+  for (let attempts = 0; attempts < 32; attempts += 1) {
+    const candidate = [...positions];
+
+    for (let index = candidate.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(random() * (index + 1));
+      [candidate[index], candidate[swapIndex]] = [candidate[swapIndex], candidate[index]];
+    }
+
+    if (candidate.every((position, index) => position !== index)) {
+      return candidate;
+    }
+  }
+
+  return positions.map((_, index) => (index + 1) % length);
+}
+
+function seededUnitRandom(seedText) {
+  let state = 2166136261;
+
+  for (const character of seedText) {
+    state ^= character.charCodeAt(0);
+    state = Math.imul(state, 16777619) >>> 0;
+  }
+
+  return () => {
+    state ^= state << 13;
+    state ^= state >>> 17;
+    state ^= state << 5;
+    return (state >>> 0) / 4294967296;
+  };
 }
 
 function setActiveView(view) {
