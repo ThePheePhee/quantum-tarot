@@ -155,7 +155,7 @@ async function requestClearSeed() {
     renderInitialSpread();
     dashboardStatus.textContent = "Draw cards to load correspondences.";
     correspondenceList.replaceChildren();
-    renderDashboardVisuals(createActivationModel([]));
+    renderDashboardVisuals(createActivationModel([]), []);
     statusText.textContent = "Local seed cleared.";
   } catch (error) {
     statusText.textContent = error.message;
@@ -386,7 +386,7 @@ async function loadDashboard() {
     dashboardStatus.textContent = dashboard.connected
       ? `${dashboard.correspondences.length} correspondences loaded from Baserow.`
       : dashboard.error ?? "Ontology database is not connected.";
-    renderCorrespondences(dashboard.correspondences);
+    renderCorrespondences(dashboard.correspondences, dashboard.draw);
   } catch (error) {
     dashboardStatus.textContent = error.message;
   }
@@ -403,8 +403,8 @@ async function fetchJson(path) {
   return payload;
 }
 
-function renderCorrespondences(correspondences) {
-  renderDashboardVisuals(createActivationModel(correspondences));
+function renderCorrespondences(correspondences, draw = []) {
+  renderDashboardVisuals(createActivationModel(correspondences), draw);
 
   if (!correspondences.length) {
     correspondenceList.replaceChildren(emptyMessage("No correspondences found for this draw."));
@@ -569,9 +569,10 @@ function createActivationModel(correspondences) {
 
   const uniqueCounts = Array.from(new Set(counts.values())).sort((left, right) => left - right);
   const max = uniqueCounts.at(-1) ?? 0;
-  const heatScale = uniqueCounts.map((count, index) => ({
+  const heatScale = uniqueCounts.map((count) => ({
     count,
-    color: discreteHeatColor(index, uniqueCounts.length)
+    color: continuousHeatColor(count, max),
+    position: max ? (count / max) * 100 : 0
   }));
   const heatByCount = new Map(heatScale.map((item) => [item.count, item.color]));
 
@@ -594,22 +595,26 @@ function createActivationModel(correspondences) {
   };
 }
 
-function discreteHeatColor(index, total) {
-  const ratio = total <= 1 ? 1 : index / (total - 1);
+function continuousHeatColor(count, max) {
+  const ratio = max <= 1 ? 1 : count / max;
   const hue = 205 - ratio * 205;
   const lightness = 60 - ratio * 8;
   return `hsl(${hue.toFixed(0)} 92% ${lightness.toFixed(0)}%)`;
 }
 
 function heatLegend(heatScale) {
-  const steps = heatScale.map(({ count, color }) => ({
+  const steps = heatScale.map(({ count, color, position }) => ({
     color,
+    position,
     label: `${count} ${count === 1 ? "activation" : "activations"}`
   }));
 
   return `<article class="heatmap-legend"><h3>Activation Heat</h3><div class="legend-scale">
     ${steps.length
-      ? steps.map((step) => `<div><span style="--heat:${step.color}"></span><small>${step.label}</small></div>`).join("")
+      ? `<div class="legend-continuum" aria-label="Continuous activation heat scale">
+          <span class="legend-gradient"></span>
+          ${steps.map((step) => `<span class="legend-tick" style="--heat:${step.color};--position:${step.position}%"><i></i><small>${step.label}</small></span>`).join("")}
+        </div>`
       : "<p>No activations yet</p>"}
   </div></article>`;
 }
@@ -725,10 +730,11 @@ const pentagramPoints = [
   { key: "air", label: "Air", x: 225, y: 262 }
 ];
 
-function renderDashboardVisuals(activation) {
+function renderDashboardVisuals(activation, draw = []) {
   dashboardVisuals.innerHTML = `
     <section class="dashboard-overview">
       ${heatLegend(activation.heatScale)}
+      ${dashboardStats(draw, activation)}
     </section>
     <section class="diagram-grid">
       ${treeOfLifeSvg(activation)}
@@ -738,6 +744,165 @@ function renderDashboardVisuals(activation) {
       ${hebrewLetterFrame(activation)}
     </section>
   `;
+}
+
+function dashboardStats(draw, activation) {
+  if (!draw.length) {
+    return `<article class="math-panel empty-math"><h3>Draw Statistics</h3><p>No cards drawn yet.</p></article>`;
+  }
+
+  return `
+    ${arcanaPanel(draw)}
+    ${suitPanel(draw)}
+    ${treeBalancePanel(activation)}
+    ${abyssPanel(activation)}
+  `;
+}
+
+function arcanaPanel(draw) {
+  const total = draw.length;
+  const major = draw.filter((card) => card.arcana === "major").length;
+  const minor = draw.filter((card) => card.arcana === "minor").length;
+  const court = draw.filter(isCourtCard).length;
+  const pip = draw.filter((card) => card.arcana === "minor" && !isCourtCard(card)).length;
+  const donutItems = [
+    { label: "Major", value: major, color: "#f0c96f" },
+    { label: "Minor", value: minor, color: "#4fb6d9" }
+  ];
+  const items = [
+    ...donutItems,
+    { label: "Court", value: court, color: "#c43f46" },
+    { label: "Pip + Ace", value: pip, color: "#8e6ee8" }
+  ];
+
+  return `<article class="math-panel arcana-panel">
+    <h3>Draw Makeup</h3>
+    <div class="donut-row">
+      <div class="donut" style="${donutStyle(donutItems)}"><span>${total}</span></div>
+      <div class="metric-list">${items.map((item) => metricLine(item, total)).join("")}</div>
+    </div>
+  </article>`;
+}
+
+function suitPanel(draw) {
+  const minor = draw.filter((card) => card.arcana === "minor");
+  const suitsData = [
+    { key: "wands", label: "Wands", color: "#d55742" },
+    { key: "swords", label: "Swords", color: "#d7dfe7" },
+    { key: "cups", label: "Cups", color: "#4ea3d8" },
+    { key: "disks", label: "Disks", color: "#d2aa55" }
+  ].map((item) => ({
+    ...item,
+    value: minor.filter((card) => card.suit === item.key).length
+  }));
+  const total = Math.max(1, minor.length);
+
+  return `<article class="math-panel suit-panel">
+    <h3>Suit Distribution</h3>
+    <div class="suit-bars">${suitsData.map((item) => `
+      <div class="suit-bar" style="--bar:${(item.value / total * 100).toFixed(2)}%;--tone:${item.color}">
+        <span>${item.label}</span><i></i><strong>${item.value}</strong>
+      </div>`).join("")}</div>
+  </article>`;
+}
+
+function treeBalancePanel(activation) {
+  const pillars = [
+    { key: "left", label: "Left", color: "#c43f46", value: treePillarCount(activation, "left") },
+    { key: "middle", label: "Middle", color: "#f0c96f", value: treePillarCount(activation, "middle") },
+    { key: "right", label: "Right", color: "#4fb6d9", value: treePillarCount(activation, "right") }
+  ];
+  const total = Math.max(1, pillars.reduce((sum, item) => sum + item.value, 0));
+
+  return `<article class="math-panel tree-math-panel">
+    <h3>Tree Balance</h3>
+    <div class="balance-triptych">${pillars.map((item) => `
+      <div style="--bar:${(item.value / total * 100).toFixed(2)}%;--tone:${item.color}">
+        <i></i><span>${item.label}</span><strong>${item.value}</strong>
+      </div>`).join("")}</div>
+  </article>`;
+}
+
+function abyssPanel(activation) {
+  const zones = [
+    { label: "Above", value: treeZoneCount(activation, "above"), color: "#f0c96f" },
+    { label: "Abyss Bridge", value: treeZoneCount(activation, "bridge"), color: "#8e6ee8" },
+    { label: "Below", value: treeZoneCount(activation, "below"), color: "#4fb6d9" }
+  ];
+  const total = Math.max(1, zones.reduce((sum, item) => sum + item.value, 0));
+
+  return `<article class="math-panel abyss-panel">
+    <h3>Abyss Relation</h3>
+    <div class="abyss-stack">${zones.map((item) => `
+      <div style="--share:${(item.value / total * 100).toFixed(2)}%;--tone:${item.color}">
+        <span>${item.label}</span><i></i><strong>${item.value}</strong>
+      </div>`).join("")}</div>
+  </article>`;
+}
+
+function isCourtCard(card) {
+  return ["Page", "Knight", "Queen", "King"].includes(card.rank);
+}
+
+function donutStyle(items) {
+  const total = Math.max(1, items.reduce((sum, item) => sum + item.value, 0));
+  let cursor = 0;
+  const stops = items.map((item) => {
+    const start = cursor;
+    cursor += item.value / total * 100;
+    return `${item.color} ${start.toFixed(2)}% ${cursor.toFixed(2)}%`;
+  });
+
+  return `--donut: conic-gradient(${stops.join(", ")});`;
+}
+
+function metricLine(item, total) {
+  return `<div class="metric-line" style="--tone:${item.color};--bar:${percent(item.value, total)}%">
+    <span>${item.label}</span>
+    <i></i>
+    <strong>${item.value}</strong>
+    <small>${percent(item.value, total).toFixed(0)}%</small>
+  </div>`;
+}
+
+function percent(value, total) {
+  return total ? value / total * 100 : 0;
+}
+
+function treePillarCount(activation, pillar) {
+  const sephirahCount = sephiroth
+    .filter((item) => treePillar(item.x) === pillar)
+    .reduce((sum, item) => sum + activation.count(`sephirah:${item.key}`), 0);
+  const pathCount = treePaths
+    .filter(([, x1,, x2]) => treePillar((x1 + x2) / 2) === pillar)
+    .reduce((sum, [id]) => sum + activation.count(`path:${id}`), 0);
+
+  return sephirahCount + pathCount;
+}
+
+function treePillar(x) {
+  if (x < 120) return "left";
+  if (x > 180) return "right";
+  return "middle";
+}
+
+function treeZoneCount(activation, zone) {
+  const sephirahCount = sephiroth
+    .filter((item) => treeZone(item.y, item.y) === zone)
+    .reduce((sum, item) => sum + activation.count(`sephirah:${item.key}`), 0);
+  const pathCount = treePaths
+    .filter(([, , y1, , y2]) => treeZone(y1, y2) === zone)
+    .reduce((sum, [id]) => sum + activation.count(`path:${id}`), 0);
+
+  return sephirahCount + pathCount;
+}
+
+function treeZone(y1, y2) {
+  const abyssY = 120;
+
+  if (y1 < abyssY && y2 < abyssY) return "above";
+  if ((y1 < abyssY && y2 >= abyssY) || (y2 < abyssY && y1 >= abyssY)) return "bridge";
+  return "below";
 }
 
 function activeAttrs(activation, key, label = labelForActivationKey(key)) {
@@ -892,5 +1057,5 @@ function setActiveDashboardSubview(view) {
   listDashboardView.classList.toggle("active", listActive);
 }
 
-renderDashboardVisuals(createActivationModel([]));
+renderDashboardVisuals(createActivationModel([]), []);
 syncDrawControls();
