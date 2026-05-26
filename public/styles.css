@@ -759,14 +759,14 @@ h1 {
 
 .metric-list,
 .suit-bars,
-.abyss-stack {
+.structure-stack {
   display: grid;
   gap: 8px;
 }
 
 .metric-line,
 .suit-bar,
-.abyss-stack div {
+.structure-stack div {
   display: grid;
   grid-template-columns: minmax(72px, 0.9fr) minmax(0, 1.7fr) 2rem 2.4rem;
   gap: 10px;
@@ -775,7 +775,7 @@ h1 {
 
 .metric-line span,
 .suit-bar span,
-.abyss-stack span,
+.structure-stack span,
 .balance-triptych span {
   color: var(--muted);
   font: 700 0.68rem/1 system-ui, sans-serif;
@@ -785,7 +785,7 @@ h1 {
 
 .metric-line i,
 .suit-bar i,
-.abyss-stack i {
+.structure-stack i {
   position: relative;
   display: block;
   height: 8px;
@@ -797,7 +797,7 @@ h1 {
 
 .metric-line i::after,
 .suit-bar i::after,
-.abyss-stack i::after {
+.structure-stack i::after {
   content: "";
   position: absolute;
   top: -4px;
@@ -811,7 +811,7 @@ h1 {
 
 .metric-line strong,
 .suit-bar strong,
-.abyss-stack strong,
+.structure-stack strong,
 .balance-triptych strong {
   color: var(--muted);
   font: 700 0.72rem/1 system-ui, sans-serif;
@@ -819,7 +819,7 @@ h1 {
 
 .metric-line small,
 .suit-bar small,
-.abyss-stack small,
+.structure-stack small,
 .balance-triptych small {
   color: var(--gold);
   font: 700 0.62rem/1 system-ui, sans-serif;

@@ -758,6 +758,7 @@ function dashboardStats(draw, activation) {
     ${suitPanel(draw)}
     ${treeBalancePanel(activation)}
     ${abyssPanel(activation)}
+    ${pathOrientationPanel(activation)}
   `;
 }
 
@@ -831,21 +832,39 @@ function treeBalancePanel(activation) {
 }
 
 function abyssPanel(activation) {
-  const expected = treeZoneExpected();
+  const expected = sephirahZoneExpected();
   const zones = [
-    { key: "above", label: "Above", value: treeZoneCount(activation, "above"), expected: expected.above, color: "#f0c96f" },
-    { key: "bridge", label: "Abyss Bridge", value: treeZoneCount(activation, "bridge"), expected: expected.bridge, color: "#8e6ee8" },
-    { key: "below", label: "Below", value: treeZoneCount(activation, "below"), expected: expected.below, color: "#4fb6d9" }
+    { key: "above", label: "Above", value: sephirahZoneCount(activation, "above"), expected: expected.above, color: "#f0c96f" },
+    { key: "below", label: "Below", value: sephirahZoneCount(activation, "below"), expected: expected.below, color: "#4fb6d9" }
   ];
   const total = Math.max(1, zones.reduce((sum, item) => sum + item.value, 0));
 
   return `<article class="math-panel abyss-panel" data-math-panel tabindex="0" role="button" aria-expanded="false">
-    <h3>Abyss Relation</h3>
-    <div class="abyss-stack">${zones.map((item) => `
+    <h3>Sephiroth Abyss</h3>
+    <div class="structure-stack">${zones.map((item) => `
       <div style="--share:${(item.value / total * 100).toFixed(2)}%;--expected:${item.expected}%;--tone:${item.color}">
         <span>${item.label}</span><i></i><strong>${item.value}</strong><small>${percent(item.value, total).toFixed(0)}%</small>
       </div>`).join("")}</div>
     ${expectedDetail(zones, total)}
+  </article>`;
+}
+
+function pathOrientationPanel(activation) {
+  const expected = pathOrientationExpected();
+  const orientations = [
+    { key: "vertical", label: "Vertical", value: pathOrientationCount(activation, "vertical"), expected: expected.vertical, color: "#f0c96f" },
+    { key: "horizontal", label: "Horizontal", value: pathOrientationCount(activation, "horizontal"), expected: expected.horizontal, color: "#8e6ee8" },
+    { key: "diagonal", label: "Diagonal", value: pathOrientationCount(activation, "diagonal"), expected: expected.diagonal, color: "#4fb6d9" }
+  ];
+  const total = Math.max(1, orientations.reduce((sum, item) => sum + item.value, 0));
+
+  return `<article class="math-panel path-orientation-panel" data-math-panel tabindex="0" role="button" aria-expanded="false">
+    <h3>Path Orientation</h3>
+    <div class="structure-stack">${orientations.map((item) => `
+      <div style="--share:${(item.value / total * 100).toFixed(2)}%;--expected:${item.expected}%;--tone:${item.color}">
+        <span>${item.label}</span><i></i><strong>${item.value}</strong><small>${percent(item.value, total).toFixed(0)}%</small>
+      </div>`).join("")}</div>
+    ${expectedDetail(orientations, total)}
   </article>`;
 }
 
@@ -924,26 +943,17 @@ function treePillar(x) {
   return "middle";
 }
 
-function treeZoneCount(activation, zone) {
-  const sephirahCount = sephiroth
-    .filter((item) => treeZone(item.y, item.y) === zone)
+function sephirahZoneCount(activation, zone) {
+  return sephiroth
+    .filter((item) => sephirahZone(item.y) === zone)
     .reduce((sum, item) => sum + activation.count(`sephirah:${item.key}`), 0);
-  const pathCount = treePaths
-    .filter(([, , y1, , y2]) => treeZone(y1, y2) === zone)
-    .reduce((sum, [id]) => sum + activation.count(`path:${id}`), 0);
-
-  return sephirahCount + pathCount;
 }
 
-function treeZoneExpected() {
-  const counts = { above: 0, bridge: 0, below: 0 };
+function sephirahZoneExpected() {
+  const counts = { above: 0, below: 0 };
 
   for (const item of sephiroth) {
-    counts[treeZone(item.y, item.y)] += 1;
-  }
-
-  for (const [, , y1, , y2] of treePaths) {
-    counts[treeZone(y1, y2)] += 1;
+    counts[sephirahZone(item.y)] += 1;
   }
 
   return shareMap(counts);
@@ -956,12 +966,32 @@ function shareMap(counts) {
   );
 }
 
-function treeZone(y1, y2) {
+function sephirahZone(y) {
   const abyssY = 120;
+  return y < abyssY ? "above" : "below";
+}
 
-  if (y1 < abyssY && y2 < abyssY) return "above";
-  if ((y1 < abyssY && y2 >= abyssY) || (y2 < abyssY && y1 >= abyssY)) return "bridge";
-  return "below";
+function pathOrientationCount(activation, orientation) {
+  return treePaths
+    .filter((path) => pathOrientation(path) === orientation)
+    .reduce((sum, [id]) => sum + activation.count(`path:${id}`), 0);
+}
+
+function pathOrientationExpected() {
+  const counts = { vertical: 0, horizontal: 0, diagonal: 0 };
+
+  for (const path of treePaths) {
+    counts[pathOrientation(path)] += 1;
+  }
+
+  return shareMap(counts);
+}
+
+function pathOrientation(path) {
+  const [, x1, y1, x2, y2] = path;
+  if (x1 === x2) return "vertical";
+  if (y1 === y2) return "horizontal";
+  return "diagonal";
 }
 
 function activeAttrs(activation, key, label = labelForActivationKey(key)) {
