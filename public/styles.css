@@ -388,9 +388,22 @@ h1 {
 
 .dashboard-visuals {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
   margin: 0 0 18px;
+}
+
+.dashboard-overview {
+  display: grid;
+}
+
+.diagram-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.1fr) minmax(240px, 1fr) minmax(220px, 0.85fr);
+  grid-template-areas:
+    "tree zodiac planets"
+    "tree elements hebrew";
+  gap: 14px;
+  align-items: stretch;
 }
 
 .diagram-panel {
@@ -402,6 +415,26 @@ h1 {
     linear-gradient(180deg, rgba(111, 20, 24, 0.12), transparent 120px),
     rgba(10, 8, 8, 0.88);
   box-shadow: inset 0 0 0 1px rgba(246, 220, 160, 0.03);
+}
+
+.tree-panel {
+  grid-area: tree;
+}
+
+.zodiac-panel {
+  grid-area: zodiac;
+}
+
+.planet-panel {
+  grid-area: planets;
+}
+
+.element-panel {
+  grid-area: elements;
+}
+
+.hebrew-panel {
+  grid-area: hebrew;
 }
 
 .diagram-panel h3 {
@@ -513,14 +546,10 @@ h1 {
   letter-spacing: 0;
 }
 
-.hebrew-panel {
-  grid-column: span 2;
-}
-
 .hebrew-grid {
   display: grid;
-  grid-template-columns: repeat(11, minmax(0, 1fr));
-  gap: 7px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .hebrew-grid div {
@@ -550,19 +579,38 @@ h1 {
 }
 
 .heatmap-legend {
-  display: grid;
-  align-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(202, 164, 90, 0.2);
+  border-radius: 7px;
+  background: rgba(10, 8, 8, 0.74);
+}
+
+.heatmap-legend h3 {
+  flex: 0 0 auto;
+  margin: 0;
+  color: var(--gold);
+  font: 700 0.72rem/1.3 system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .legend-scale {
-  display: grid;
-  gap: 9px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px 14px;
+  min-width: 0;
 }
 
 .legend-scale div {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 36px max-content;
+  gap: 8px;
   align-items: center;
 }
 
@@ -726,12 +774,23 @@ h1 {
     grid-template-columns: 1fr;
   }
 
-  .dashboard-visuals {
+  .diagram-grid {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "tree"
+      "zodiac"
+      "planets"
+      "elements"
+      "hebrew";
   }
 
-  .hebrew-panel {
-    grid-column: auto;
+  .heatmap-legend {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .legend-scale {
+    justify-content: flex-start;
   }
 
   .hebrew-grid {
@@ -740,11 +799,11 @@ h1 {
 }
 
 @media (min-width: 761px) and (max-width: 1080px) {
-  .dashboard-visuals {
+  .diagram-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .hebrew-panel {
-    grid-column: span 2;
+    grid-template-areas:
+      "tree zodiac"
+      "tree planets"
+      "elements hebrew";
   }
 }

@@ -87,7 +87,7 @@ async function refreshStatus() {
 
   seeded = status.seeded;
   statusText.textContent = status.seeded
-    ? `Seed ${status.seedVersion} is ready.`
+    ? "Full RNG seed is ready."
     : "Awaiting local entropy seed.";
 
   renderReceipt(status.latestReceipt);
@@ -99,7 +99,7 @@ async function requestDraw() {
     const settings = normalizeDrawSettings();
     const result = await postJson("/api/draw", settings);
     renderSpread(result.cards);
-    statusText.textContent = `Spread drawn from seed ${result.seedVersion}.`;
+    statusText.textContent = "Spread drawn from the current full RNG seed.";
     await loadDashboard();
   } catch (error) {
     statusText.textContent = error.message;
@@ -227,7 +227,7 @@ function renderReceipt(receipt) {
     return;
   }
 
-  receiptState.textContent = `${titleCase(receipt.mode)} seed ${receipt.seedVersion} received`;
+  receiptState.textContent = `${titleCase(receipt.mode)} full RNG seed received`;
   receiptSource.textContent = receipt.source;
   receiptTime.textContent = new Date(receipt.receivedAt).toLocaleString();
   receiptEntropy.textContent = `${receipt.entropyBytesUsed} bytes`;
@@ -539,7 +539,7 @@ function heatColor(ratio) {
 function heatLegend(max) {
   const steps = heatLegendSteps(max);
 
-  return `<article class="diagram-panel heatmap-legend"><h3>Activation Heat</h3><div class="legend-scale">
+  return `<article class="heatmap-legend"><h3>Activation Heat</h3><div class="legend-scale">
     ${steps.length
       ? steps.map((step) => `<div><span style="--heat:${step.color}"></span><small>${step.label}</small></div>`).join("")
       : "<p>No activations yet</p>"}
@@ -562,7 +562,9 @@ function heatLegendSteps(max) {
 
   return groups.map((group) => ({
     color: group.color,
-    label: group.low === group.high ? `${group.low}` : `${group.low}-${group.high}`
+    label: group.low === group.high
+      ? `${group.low} ${group.low === 1 ? "activation" : "activations"}`
+      : `${group.low}-${group.high} activations`
   }));
 }
 
@@ -679,12 +681,16 @@ const pentagramPoints = [
 
 function renderDashboardVisuals(activation) {
   dashboardVisuals.innerHTML = `
-    ${heatLegend(activation.max)}
-    ${treeOfLifeSvg(activation)}
-    ${zodiacSvg(activation)}
-    ${planetaryFrame(activation)}
-    ${elementPentagramSvg(activation)}
-    ${hebrewLetterFrame(activation)}
+    <section class="dashboard-overview">
+      ${heatLegend(activation.max)}
+    </section>
+    <section class="diagram-grid">
+      ${treeOfLifeSvg(activation)}
+      ${zodiacSvg(activation)}
+      ${planetaryFrame(activation)}
+      ${elementPentagramSvg(activation)}
+      ${hebrewLetterFrame(activation)}
+    </section>
   `;
 }
 
@@ -696,14 +702,14 @@ function activeAttrs(activation, key) {
 }
 
 function treeOfLifeSvg(activation) {
-  return `<article class="diagram-panel"><h3>Tree of Life</h3><svg viewBox="0 0 300 420" role="img" aria-label="Tree of Life correspondences">
+  return `<article class="diagram-panel tree-panel"><h3>Tree of Life</h3><svg viewBox="0 0 300 420" role="img" aria-label="Tree of Life correspondences">
     ${treePaths.map(([id, x1, y1, x2, y2]) => `<line ${activeAttrs(activation, `path:${id}`)} x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line>`).join("")}
     ${sephiroth.map((item) => `<g ${activeAttrs(activation, `sephirah:${item.key}`)}><circle cx="${item.x}" cy="${item.y}" r="18"></circle><text x="${item.x}" y="${item.y + 4}">${item.label}</text></g>`).join("")}
   </svg></article>`;
 }
 
 function zodiacSvg(activation) {
-  return `<article class="diagram-panel"><h3>Zodiac</h3><svg viewBox="0 0 300 300" role="img" aria-label="Zodiac correspondences">
+  return `<article class="diagram-panel zodiac-panel"><h3>Zodiac</h3><svg viewBox="0 0 300 300" role="img" aria-label="Zodiac correspondences">
     <circle class="diagram-ring" cx="150" cy="150" r="106"></circle>
     ${zodiacSigns.map((sign, index) => {
       const angle = (index / zodiacSigns.length) * Math.PI * 2 - Math.PI / 2;
@@ -715,13 +721,13 @@ function zodiacSvg(activation) {
 }
 
 function planetaryFrame(activation) {
-  return `<article class="diagram-panel"><h3>Planets</h3><div class="planet-frame">
+  return `<article class="diagram-panel planet-panel"><h3>Planets</h3><div class="planet-frame">
     ${planets.map((planet) => `<div ${activeAttrs(activation, `planet:${planet.key}`)}><span>${planet.entity}</span><small>${titleCase(planet.key)}</small></div>`).join("")}
   </div></article>`;
 }
 
 function elementPentagramSvg(activation) {
-  return `<article class="diagram-panel"><h3>Elements</h3><svg viewBox="0 0 300 300" role="img" aria-label="Elemental pentagram correspondences">
+  return `<article class="diagram-panel element-panel"><h3>Elements</h3><svg viewBox="0 0 300 300" role="img" aria-label="Elemental pentagram correspondences">
     <path class="pentagram-line" d="M150 25 L75 262 L270 118 L30 118 L225 262 Z"></path>
     ${pentagramPoints.map((point) => `<g ${activeAttrs(activation, `element:${point.key}`)}><circle cx="${point.x}" cy="${point.y}" r="23"></circle><text x="${point.x}" y="${point.y + 4}">${point.label}</text></g>`).join("")}
   </svg></article>`;
