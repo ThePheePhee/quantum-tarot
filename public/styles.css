@@ -769,12 +769,27 @@ h1 {
 .metric-line i,
 .suit-bar i,
 .abyss-stack i {
+  position: relative;
   display: block;
   height: 8px;
   border-radius: 999px;
   background:
     linear-gradient(90deg, var(--tone) var(--bar, var(--share)), rgba(202, 164, 90, 0.12) 0);
   box-shadow: inset 0 0 0 1px rgba(246, 220, 160, 0.05);
+}
+
+.metric-line i::after,
+.suit-bar i::after,
+.abyss-stack i::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: var(--expected);
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(244, 236, 216, 0.74);
+  box-shadow: 0 0 8px rgba(244, 236, 216, 0.28);
 }
 
 .metric-line strong,
@@ -785,9 +800,13 @@ h1 {
   font: 700 0.72rem/1 system-ui, sans-serif;
 }
 
-.metric-line small {
+.metric-line small,
+.suit-bar small,
+.abyss-stack small,
+.balance-triptych small {
   color: var(--gold);
   font: 700 0.62rem/1 system-ui, sans-serif;
+  white-space: nowrap;
 }
 
 .balance-triptych {
@@ -800,18 +819,31 @@ h1 {
 
 .balance-triptych div {
   display: grid;
-  grid-template-rows: minmax(70px, 1fr) auto auto;
+  grid-template-rows: minmax(70px, 1fr) auto auto auto;
   gap: 6px;
   justify-items: center;
 }
 
 .balance-triptych i {
+  position: relative;
   align-self: end;
   width: 100%;
   height: max(8px, var(--bar));
   border-radius: 5px 5px 2px 2px;
   background: linear-gradient(180deg, color-mix(in srgb, var(--tone), white 14%), var(--tone));
   box-shadow: 0 0 18px color-mix(in srgb, var(--tone), transparent 70%);
+}
+
+.balance-triptych i::after {
+  content: "";
+  position: absolute;
+  left: -3px;
+  right: -3px;
+  bottom: var(--expected);
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(244, 236, 216, 0.74);
+  box-shadow: 0 0 8px rgba(244, 236, 216, 0.28);
 }
 
 .empty-math {

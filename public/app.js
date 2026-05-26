@@ -766,13 +766,13 @@ function arcanaPanel(draw) {
   const court = draw.filter(isCourtCard).length;
   const pip = draw.filter((card) => card.arcana === "minor" && !isCourtCard(card)).length;
   const donutItems = [
-    { label: "Major", value: major, color: "#f0c96f" },
-    { label: "Minor", value: minor, color: "#4fb6d9" }
+    { label: "Major", value: major, expected: 22 / 78 * 100, color: "#f0c96f" },
+    { label: "Minor", value: minor, expected: 56 / 78 * 100, color: "#4fb6d9" }
   ];
   const items = [
     ...donutItems,
-    { label: "Court", value: court, color: "#c43f46" },
-    { label: "Pip + Ace", value: pip, color: "#8e6ee8" }
+    { label: "Court", value: court, expected: 16 / 78 * 100, color: "#c43f46" },
+    { label: "Pip + Ace", value: pip, expected: 40 / 78 * 100, color: "#8e6ee8" }
   ];
 
   return `<article class="math-panel arcana-panel">
@@ -793,49 +793,52 @@ function suitPanel(draw) {
     { key: "disks", label: "Disks", color: "#d2aa55" }
   ].map((item) => ({
     ...item,
-    value: minor.filter((card) => card.suit === item.key).length
+    value: minor.filter((card) => card.suit === item.key).length,
+    expected: 25
   }));
   const total = Math.max(1, minor.length);
 
   return `<article class="math-panel suit-panel">
     <h3>Suit Distribution</h3>
     <div class="suit-bars">${suitsData.map((item) => `
-      <div class="suit-bar" style="--bar:${(item.value / total * 100).toFixed(2)}%;--tone:${item.color}">
-        <span>${item.label}</span><i></i><strong>${item.value}</strong>
+      <div class="suit-bar" style="--bar:${(item.value / total * 100).toFixed(2)}%;--expected:${item.expected}%;--tone:${item.color}">
+        <span>${item.label}</span><i></i><strong>${item.value}</strong><small>exp ${item.expected.toFixed(0)}%</small>
       </div>`).join("")}</div>
   </article>`;
 }
 
 function treeBalancePanel(activation) {
+  const expected = treePillarExpected();
   const pillars = [
-    { key: "left", label: "Left", color: "#c43f46", value: treePillarCount(activation, "left") },
-    { key: "middle", label: "Middle", color: "#f0c96f", value: treePillarCount(activation, "middle") },
-    { key: "right", label: "Right", color: "#4fb6d9", value: treePillarCount(activation, "right") }
+    { key: "left", label: "Left", color: "#c43f46", value: treePillarCount(activation, "left"), expected: expected.left },
+    { key: "middle", label: "Middle", color: "#f0c96f", value: treePillarCount(activation, "middle"), expected: expected.middle },
+    { key: "right", label: "Right", color: "#4fb6d9", value: treePillarCount(activation, "right"), expected: expected.right }
   ];
   const total = Math.max(1, pillars.reduce((sum, item) => sum + item.value, 0));
 
   return `<article class="math-panel tree-math-panel">
     <h3>Tree Balance</h3>
     <div class="balance-triptych">${pillars.map((item) => `
-      <div style="--bar:${(item.value / total * 100).toFixed(2)}%;--tone:${item.color}">
-        <i></i><span>${item.label}</span><strong>${item.value}</strong>
+      <div style="--bar:${(item.value / total * 100).toFixed(2)}%;--expected:${item.expected}%;--tone:${item.color}">
+        <i></i><span>${item.label}</span><strong>${item.value}</strong><small>exp ${item.expected.toFixed(0)}%</small>
       </div>`).join("")}</div>
   </article>`;
 }
 
 function abyssPanel(activation) {
+  const expected = treeZoneExpected();
   const zones = [
-    { label: "Above", value: treeZoneCount(activation, "above"), color: "#f0c96f" },
-    { label: "Abyss Bridge", value: treeZoneCount(activation, "bridge"), color: "#8e6ee8" },
-    { label: "Below", value: treeZoneCount(activation, "below"), color: "#4fb6d9" }
+    { key: "above", label: "Above", value: treeZoneCount(activation, "above"), expected: expected.above, color: "#f0c96f" },
+    { key: "bridge", label: "Abyss Bridge", value: treeZoneCount(activation, "bridge"), expected: expected.bridge, color: "#8e6ee8" },
+    { key: "below", label: "Below", value: treeZoneCount(activation, "below"), expected: expected.below, color: "#4fb6d9" }
   ];
   const total = Math.max(1, zones.reduce((sum, item) => sum + item.value, 0));
 
   return `<article class="math-panel abyss-panel">
     <h3>Abyss Relation</h3>
     <div class="abyss-stack">${zones.map((item) => `
-      <div style="--share:${(item.value / total * 100).toFixed(2)}%;--tone:${item.color}">
-        <span>${item.label}</span><i></i><strong>${item.value}</strong>
+      <div style="--share:${(item.value / total * 100).toFixed(2)}%;--expected:${item.expected}%;--tone:${item.color}">
+        <span>${item.label}</span><i></i><strong>${item.value}</strong><small>exp ${item.expected.toFixed(0)}%</small>
       </div>`).join("")}</div>
   </article>`;
 }
@@ -857,11 +860,11 @@ function donutStyle(items) {
 }
 
 function metricLine(item, total) {
-  return `<div class="metric-line" style="--tone:${item.color};--bar:${percent(item.value, total)}%">
+  return `<div class="metric-line" style="--tone:${item.color};--bar:${percent(item.value, total)}%;--expected:${item.expected}%">
     <span>${item.label}</span>
     <i></i>
     <strong>${item.value}</strong>
-    <small>${percent(item.value, total).toFixed(0)}%</small>
+    <small>${percent(item.value, total).toFixed(0)}% / exp ${item.expected.toFixed(0)}%</small>
   </div>`;
 }
 
@@ -880,6 +883,20 @@ function treePillarCount(activation, pillar) {
   return sephirahCount + pathCount;
 }
 
+function treePillarExpected() {
+  const counts = { left: 0, middle: 0, right: 0 };
+
+  for (const item of sephiroth) {
+    counts[treePillar(item.x)] += 1;
+  }
+
+  for (const [, x1,, x2] of treePaths) {
+    counts[treePillar((x1 + x2) / 2)] += 1;
+  }
+
+  return shareMap(counts);
+}
+
 function treePillar(x) {
   if (x < 120) return "left";
   if (x > 180) return "right";
@@ -895,6 +912,27 @@ function treeZoneCount(activation, zone) {
     .reduce((sum, [id]) => sum + activation.count(`path:${id}`), 0);
 
   return sephirahCount + pathCount;
+}
+
+function treeZoneExpected() {
+  const counts = { above: 0, bridge: 0, below: 0 };
+
+  for (const item of sephiroth) {
+    counts[treeZone(item.y, item.y)] += 1;
+  }
+
+  for (const [, , y1, , y2] of treePaths) {
+    counts[treeZone(y1, y2)] += 1;
+  }
+
+  return shareMap(counts);
+}
+
+function shareMap(counts) {
+  const total = Object.values(counts).reduce((sum, value) => sum + value, 0) || 1;
+  return Object.fromEntries(
+    Object.entries(counts).map(([key, value]) => [key, value / total * 100])
+  );
 }
 
 function treeZone(y1, y2) {
