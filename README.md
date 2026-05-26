@@ -38,6 +38,25 @@ Then open:
 http://localhost:4173
 ```
 
+## Deploy Online
+
+This app needs a Node server because the browser calls `/api/*` endpoints for
+seed state, drawing, and ontology dashboard data. Static-only hosts such as
+GitHub Pages will not run those endpoints.
+
+The repo includes `render.yaml` for Render Blueprint deployment:
+
+1. Push `main` to GitHub.
+2. In Render, create a new Blueprint from `ThePheePhee/quantum-tarot`.
+3. Set these environment variables in Render:
+   - `BASEROW_API_URL`
+   - `BASEROW_DATABASE_ID`
+   - `BASEROW_TOKEN`
+   - `ANU_QRNG_API_KEY` only when QRNG is re-enabled.
+4. Render will run `npm ci && npm run build` and start the app with `npm start`.
+
+The local `.env` file is ignored by git and should not be committed.
+
 Draw one card from the ANU QRNG:
 
 ```bash

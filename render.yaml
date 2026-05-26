@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: quantum-tarot
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BASEROW_API_URL
+        sync: false
+      - key: BASEROW_DATABASE_ID
+        sync: false
+      - key: BASEROW_TOKEN
+        sync: false
+      - key: ANU_QRNG_API_KEY
+        sync: false
