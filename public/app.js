@@ -1,5 +1,4 @@
 const drawButton = document.querySelector("#drawButton");
-const reseedButton = document.querySelector("#reseedButton");
 const statusText = document.querySelector("#statusText");
 const spread = document.querySelector("#spread");
 const receiptState = document.querySelector("#receiptState");
@@ -9,15 +8,21 @@ const receiptEntropy = document.querySelector("#receiptEntropy");
 const receiptSeed = document.querySelector("#receiptSeed");
 const receiptLocalSum = document.querySelector("#receiptLocalSum");
 const receiptTiming = document.querySelector("#receiptTiming");
-const receiptQuantum = document.querySelector("#receiptQuantum");
 const phraseInput = document.querySelector("#phraseInput");
 const localSeedButton = document.querySelector("#localSeedButton");
-const combinedSeedButton = document.querySelector("#combinedSeedButton");
 const localStatus = document.querySelector("#localStatus");
+const drawTab = document.querySelector("#drawTab");
+const dashboardTab = document.querySelector("#dashboardTab");
+const drawView = document.querySelector("#drawView");
+const dashboardView = document.querySelector("#dashboardView");
+const dashboardStatus = document.querySelector("#dashboardStatus");
+const correspondenceList = document.querySelector("#correspondenceList");
+const refreshDashboardButton = document.querySelector("#refreshDashboardButton");
 
 const positions = ["Past", "Present", "Future"];
 const timingMs = [];
 let seeded = false;
+let previousPhraseLength = 0;
 
 await refreshStatus();
 
@@ -27,23 +32,6 @@ drawButton.addEventListener("click", async () => {
   setBusy(drawButton, false);
 });
 
-reseedButton.addEventListener("click", async () => {
-  setBusy(reseedButton, true);
-  statusText.textContent = "Contacting ANU Quantum Numbers...";
-
-  try {
-    const result = await postJson("/api/reseed");
-    seeded = true;
-    drawButton.disabled = false;
-    statusText.textContent = `Seed ${result.seedVersion} received from ${result.source}.`;
-    renderReceipt(result);
-  } catch (error) {
-    statusText.textContent = error.message;
-  } finally {
-    setBusy(reseedButton, false);
-  }
-});
-
 phraseInput.addEventListener("keydown", (event) => {
   if (event.key.length === 1) {
     timingMs.push(Math.trunc(event.timeStamp));
@@ -51,8 +39,18 @@ phraseInput.addEventListener("keydown", (event) => {
 });
 
 phraseInput.addEventListener("input", () => {
+  const lengthDelta = Math.max(0, phraseInput.value.length - previousPhraseLength);
+  const missingTimings = Math.max(0, phraseInput.value.length - timingMs.length);
+
+  for (let index = 0; index < Math.min(lengthDelta, missingTimings); index += 1) {
+    timingMs.push(Math.trunc(performance.now()));
+  }
+
+  previousPhraseLength = phraseInput.value.length;
+
   if (phraseInput.value.length === 0) {
     timingMs.length = 0;
+    previousPhraseLength = 0;
   }
 
   updateLocalControls();
@@ -62,9 +60,16 @@ localSeedButton.addEventListener("click", async () => {
   await requestLocalSeed("/api/reseed-local", localSeedButton, "Local timing seed received.");
 });
 
-combinedSeedButton.addEventListener("click", async () => {
-  await requestLocalSeed("/api/reseed-combined", combinedSeedButton, "Combined local and quantum seed received.");
+drawTab.addEventListener("click", () => {
+  setActiveView("draw");
 });
+
+dashboardTab.addEventListener("click", async () => {
+  setActiveView("dashboard");
+  await loadDashboard();
+});
+
+refreshDashboardButton.addEventListener("click", loadDashboard);
 
 async function refreshStatus() {
   const response = await fetch("/api/status");
@@ -74,9 +79,7 @@ async function refreshStatus() {
   drawButton.disabled = !seeded;
   statusText.textContent = status.seeded
     ? `Seed ${status.seedVersion} is ready.`
-    : status.qrngConfigured
-      ? "Quantum key configured. Awaiting seed."
-    : "Awaiting quantum seed.";
+    : "Awaiting local entropy seed.";
 
   renderReceipt(status.latestReceipt);
 }
@@ -86,6 +89,7 @@ async function requestDraw() {
     const result = await postJson("/api/draw");
     renderSpread(result.cards);
     statusText.textContent = `Spread drawn from seed ${result.seedVersion}.`;
+    await loadDashboard();
   } catch (error) {
     statusText.textContent = error.message;
   }
@@ -100,9 +104,7 @@ async function requestLocalSeed(path, button, successMessage) {
   }
 
   setBusy(button, true);
-  statusText.textContent = path.includes("combined")
-    ? "Combining local timing with ANU Quantum Numbers..."
-    : "Seeding from local keystroke timing...";
+  statusText.textContent = "Seeding from local keystroke timing...";
 
   try {
     const result = await postJson(path, payload);
@@ -175,7 +177,6 @@ function updateLocalControls() {
   const letterCount = countLetters(phraseInput.value);
   const ready = letterCount >= 10 && timingMs.length >= 10;
   localSeedButton.disabled = !ready;
-  combinedSeedButton.disabled = !ready;
   localStatus.textContent = `${letterCount} letters captured. ${timingMs.length} keystroke timings recorded.`;
 }
 
@@ -209,7 +210,6 @@ function renderReceipt(receipt) {
     receiptSeed.textContent = "--";
     receiptLocalSum.textContent = "--";
     receiptTiming.textContent = "--";
-    receiptQuantum.textContent = "--";
     return;
   }
 
@@ -220,7 +220,6 @@ function renderReceipt(receipt) {
   receiptSeed.textContent = formatSeedHex(receipt.seedHex);
   receiptLocalSum.textContent = receipt.localTimingSum ? String(receipt.localTimingSum) : "--";
   receiptTiming.textContent = receipt.localTimingMs?.length ? receipt.localTimingMs.join(" + ") : "--";
-  receiptQuantum.textContent = receipt.quantumSeedHex ? formatSeedHex(receipt.quantumSeedHex) : "--";
 }
 
 function formatSeedHex(seedHex) {
@@ -229,4 +228,88 @@ function formatSeedHex(seedHex) {
 
 function titleCase(value) {
   return value ? value.slice(0, 1).toUpperCase() + value.slice(1) : "Random";
+}
+
+function setActiveView(view) {
+  const dashboardActive = view === "dashboard";
+  drawTab.classList.toggle("active", !dashboardActive);
+  dashboardTab.classList.toggle("active", dashboardActive);
+  drawView.classList.toggle("active", !dashboardActive);
+  dashboardView.classList.toggle("active", dashboardActive);
+}
+
+async function loadDashboard() {
+  dashboardStatus.textContent = "Loading ontology correspondences...";
+
+  try {
+    const dashboard = await fetchJson("/api/dashboard");
+
+    if (!dashboard.draw.length) {
+      dashboardStatus.textContent = "Draw cards to load correspondences.";
+      correspondenceList.replaceChildren();
+      return;
+    }
+
+    dashboardStatus.textContent = dashboard.connected
+      ? `${dashboard.correspondences.length} correspondences loaded from Baserow.`
+      : dashboard.error ?? "Ontology database is not connected.";
+    renderCorrespondences(dashboard.correspondences);
+  } catch (error) {
+    dashboardStatus.textContent = error.message;
+  }
+}
+
+async function fetchJson(path) {
+  const response = await fetch(path);
+  const payload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(payload.error ?? "Request failed");
+  }
+
+  return payload;
+}
+
+function renderCorrespondences(correspondences) {
+  if (!correspondences.length) {
+    correspondenceList.replaceChildren(emptyMessage("No correspondences found for this draw."));
+    return;
+  }
+
+  correspondenceList.replaceChildren(
+    ...correspondences.map((correspondence) => {
+      const article = document.createElement("article");
+      article.className = "correspondence-item";
+
+      const meta = document.createElement("p");
+      meta.className = "correspondence-meta";
+      meta.textContent = `${correspondence.cardName} · ${correspondence.type}${correspondence.layer ? ` · ${correspondence.layer}` : ""}`;
+
+      const title = document.createElement("h3");
+      title.textContent = correspondence.displayName;
+
+      const value = document.createElement("p");
+      value.className = "correspondence-value";
+      value.textContent = correspondence.value || correspondence.description || "No value recorded.";
+
+      const detail = document.createElement("p");
+      detail.className = "correspondence-detail";
+      detail.textContent = [
+        correspondence.system,
+        correspondence.certainty,
+        correspondence.reviewStatus,
+        correspondence.sourceReference
+      ].filter(Boolean).join(" · ");
+
+      article.append(meta, title, value, detail);
+      return article;
+    })
+  );
+}
+
+function emptyMessage(message) {
+  const element = document.createElement("p");
+  element.className = "empty";
+  element.textContent = message;
+  return element;
 }

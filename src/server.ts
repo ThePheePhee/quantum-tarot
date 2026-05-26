@@ -3,10 +3,11 @@ import { extname, join, normalize } from "node:path";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { loadEnv } from "./config/loadEnv.js";
+import { getDrawCorrespondences, OntologyDatabaseError } from "./ontology/baserow.js";
 import { AnuQrngProvider } from "./qrng/anuProvider.js";
 import { QrngError } from "./qrng/types.js";
 import { createSeededRng, drawDistinctNumbers, type SeededRng } from "./rng/seededRng.js";
-import { getCardByNumber } from "./tarot/deck.js";
+import { getCardByNumber, type TarotCard } from "./tarot/deck.js";
 
 loadEnv();
 
@@ -40,6 +41,7 @@ let rng: SeededRng | null = null;
 let seedVersion = 0;
 let lastReseededAt = 0;
 let latestReceipt: SeedReceipt | null = null;
+let latestDraw: Array<TarotCard & { position: string }> = [];
 
 const server = createServer(async (request, response) => {
   try {
@@ -57,7 +59,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === "POST" && url.pathname === "/api/reseed") {
-      return handleReseed(response);
+      return sendJson(response, { error: "QRNG is disabled for now. Use local entropy." }, 410);
     }
 
     if (request.method === "POST" && url.pathname === "/api/reseed-local") {
@@ -65,11 +67,15 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === "POST" && url.pathname === "/api/reseed-combined") {
-      return handleCombinedReseed(request, response);
+      return sendJson(response, { error: "Combined QRNG seeding is disabled for now. Use local entropy." }, 410);
     }
 
     if (request.method === "POST" && url.pathname === "/api/draw") {
       return handleDraw(response);
+    }
+
+    if (request.method === "GET" && url.pathname === "/api/dashboard") {
+      return handleDashboard(response);
     }
 
     if (request.method === "GET") {
@@ -210,7 +216,7 @@ async function handleCombinedReseed(request: IncomingMessage, response: ServerRe
 
 function handleDraw(response: ServerResponse): void {
   if (!rng) {
-    return sendJson(response, { error: "Reseed quantum randomness before drawing." }, 409);
+    return sendJson(response, { error: "Seed local entropy before drawing." }, 409);
   }
 
   const numbers = drawDistinctNumbers(rng, 3, 78);
@@ -218,8 +224,40 @@ function handleDraw(response: ServerResponse): void {
     position: ["Past", "Present", "Future"][index],
     ...getCardByNumber(number)
   }));
+  latestDraw = cards;
 
   return sendJson(response, { seedVersion, cards });
+}
+
+async function handleDashboard(response: ServerResponse): Promise<void> {
+  if (latestDraw.length === 0) {
+    return sendJson(response, {
+      connected: Boolean(process.env.BASEROW_TOKEN && process.env.BASEROW_DATABASE_ID),
+      draw: [],
+      correspondences: []
+    });
+  }
+
+  try {
+    const correspondences = await getDrawCorrespondences(latestDraw);
+
+    return sendJson(response, {
+      connected: true,
+      draw: latestDraw,
+      correspondences
+    });
+  } catch (error) {
+    if (error instanceof OntologyDatabaseError) {
+      return sendJson(response, {
+        connected: false,
+        draw: latestDraw,
+        correspondences: [],
+        error: error.message
+      }, error.status && error.status >= 400 && error.status < 600 ? error.status : 503);
+    }
+
+    throw error;
+  }
 }
 
 async function serveStatic(pathname: string, response: ServerResponse): Promise<void> {
