@@ -225,7 +225,7 @@ async function handleDraw(request: IncomingMessage, response: ServerResponse): P
 
   const drawRequest = (await readOptionalJsonBody(request)) as DrawRequest;
   const count = normalizeDrawCount(drawRequest.count);
-  const numbers = drawDistinctNumbers(rng, count, 78);
+  const numbers = drawNumbersAcrossDeckCycles(rng, count);
   const cards = numbers.map((number, index) => ({
     position: positionLabel(index, count),
     ...getCardByNumber(number)
@@ -390,11 +390,22 @@ function localSeedBytes(timingSum: number): Uint8Array {
 function normalizeDrawCount(value: unknown): number {
   const count = Number(value ?? 3);
 
-  if (!Number.isSafeInteger(count) || count < 1 || count > 12) {
-    throw new HttpError("Draw count must be an integer between 1 and 12.", 400);
+  if (!Number.isSafeInteger(count) || count < 1 || count > 100) {
+    throw new HttpError("Draw count must be an integer between 1 and 100.", 400);
   }
 
   return count;
+}
+
+function drawNumbersAcrossDeckCycles(provider: SeededRng, count: number): number[] {
+  const numbers: number[] = [];
+
+  while (numbers.length < count) {
+    const remaining = count - numbers.length;
+    numbers.push(...drawDistinctNumbers(provider, Math.min(remaining, 78), 78));
+  }
+
+  return numbers;
 }
 
 function positionLabel(index: number, count: number): string {

@@ -37,7 +37,7 @@
       <section class="controls" aria-label="Reading controls">
         <label class="draw-count" for="drawCount">
           <span>Cards</span>
-          <input id="drawCount" type="number" min="1" max="12" step="1" value="3">
+          <input id="drawCount" type="number" min="1" max="100" step="1" value="3">
         </label>
         <button class="primary" id="drawButton" type="button" disabled>Draw 3 cards</button>
         <p class="status" id="statusText">Awaiting local entropy seed.</p>
@@ -114,9 +114,17 @@
           </div>
           <button class="secondary" id="refreshDashboardButton" type="button">Refresh</button>
         </header>
+        <nav class="subtabs" aria-label="Dashboard views">
+          <button class="subtab active" id="visualDashboardTab" type="button">Visuals</button>
+          <button class="subtab" id="listDashboardTab" type="button">List</button>
+        </nav>
         <p class="dashboard-status" id="dashboardStatus">Draw cards to load correspondences.</p>
-        <section class="dashboard-visuals" id="dashboardVisuals" aria-label="Graphical correspondence dashboard"></section>
-        <div class="correspondence-list" id="correspondenceList"></div>
+        <section class="dashboard-subview active" id="visualDashboardView">
+          <section class="dashboard-visuals" id="dashboardVisuals" aria-label="Graphical correspondence dashboard"></section>
+        </section>
+        <section class="dashboard-subview" id="listDashboardView">
+          <div class="correspondence-list" id="correspondenceList"></div>
+        </section>
       </section>
     </main>
 

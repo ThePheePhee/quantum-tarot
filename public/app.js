@@ -20,6 +20,10 @@ const dashboardStatus = document.querySelector("#dashboardStatus");
 const dashboardVisuals = document.querySelector("#dashboardVisuals");
 const correspondenceList = document.querySelector("#correspondenceList");
 const refreshDashboardButton = document.querySelector("#refreshDashboardButton");
+const visualDashboardTab = document.querySelector("#visualDashboardTab");
+const listDashboardTab = document.querySelector("#listDashboardTab");
+const visualDashboardView = document.querySelector("#visualDashboardView");
+const listDashboardView = document.querySelector("#listDashboardView");
 
 const timingMs = [];
 let seeded = false;
@@ -71,6 +75,8 @@ dashboardTab.addEventListener("click", async () => {
 });
 
 refreshDashboardButton.addEventListener("click", loadDashboard);
+visualDashboardTab.addEventListener("click", () => setActiveDashboardSubview("visual"));
+listDashboardTab.addEventListener("click", () => setActiveDashboardSubview("list"));
 
 async function refreshStatus() {
   const response = await fetch("/api/status");
@@ -283,34 +289,59 @@ function renderCorrespondences(correspondences) {
   }
 
   correspondenceList.replaceChildren(
-    ...correspondences.map((correspondence) => {
-      const article = document.createElement("article");
-      article.className = "correspondence-item";
+    ...Array.from(groupByCard(correspondences).entries()).map(([cardName, cardCorrespondences]) => {
+      const section = document.createElement("section");
+      section.className = "card-correspondence-group";
 
-      const meta = document.createElement("p");
-      meta.className = "correspondence-meta";
-      meta.textContent = `${correspondence.cardName} - ${correspondence.type}${correspondence.layer ? ` - ${correspondence.layer}` : ""}`;
+      const heading = document.createElement("h3");
+      heading.textContent = cardName;
 
-      const title = document.createElement("h3");
-      title.textContent = correspondence.displayName;
+      const items = document.createElement("div");
+      items.className = "card-correspondence-items";
+      items.replaceChildren(...cardCorrespondences.map(renderCorrespondenceItem));
 
-      const value = document.createElement("p");
-      value.className = "correspondence-value";
-      value.textContent = correspondence.value || correspondence.description || "No value recorded.";
-
-      const detail = document.createElement("p");
-      detail.className = "correspondence-detail";
-      detail.textContent = [
-        correspondence.system,
-        correspondence.certainty,
-        correspondence.reviewStatus,
-        correspondence.sourceReference
-      ].filter(Boolean).join(" - ");
-
-      article.append(meta, title, value, detail);
-      return article;
+      section.append(heading, items);
+      return section;
     })
   );
+}
+
+function renderCorrespondenceItem(correspondence) {
+  const article = document.createElement("article");
+  article.className = "correspondence-item";
+
+  const meta = document.createElement("p");
+  meta.className = "correspondence-meta";
+  meta.textContent = `${correspondence.type}${correspondence.layer ? ` - ${correspondence.layer}` : ""}`;
+
+  const title = document.createElement("h4");
+  title.textContent = correspondence.displayName;
+
+  const value = document.createElement("p");
+  value.className = "correspondence-value";
+  value.textContent = correspondence.value || correspondence.description || "No value recorded.";
+
+  const detail = document.createElement("p");
+  detail.className = "correspondence-detail";
+  detail.textContent = [
+    correspondence.system,
+    correspondence.certainty,
+    correspondence.reviewStatus,
+    correspondence.sourceReference
+  ].filter(Boolean).join(" - ");
+
+  article.append(meta, title, value, detail);
+  return article;
+}
+
+function groupByCard(correspondences) {
+  const output = new Map();
+  for (const correspondence of correspondences) {
+    const group = output.get(correspondence.cardName) ?? [];
+    group.push(correspondence);
+    output.set(correspondence.cardName, group);
+  }
+  return output;
 }
 
 function emptyMessage(message) {
@@ -322,7 +353,7 @@ function emptyMessage(message) {
 
 function normalizeDrawCount() {
   const value = Number(drawCountInput.value || 3);
-  return Number.isSafeInteger(value) ? Math.max(1, Math.min(12, value)) : 3;
+  return Number.isSafeInteger(value) ? Math.max(1, Math.min(100, value)) : 3;
 }
 
 drawCountInput.addEventListener("input", () => {
@@ -376,6 +407,14 @@ function activationKeys(correspondence) {
   const pathMatch = text.match(/path\s+([1-3][0-9]|[1-9])/);
   if (pathMatch) keys.push(`path:${pathMatch[1]}`);
 
+  if (text.includes("hebrew")) {
+    for (const letter of hebrewLetters) {
+      if (containsWord(text, letter.key) || text.includes(letter.glyph)) {
+        keys.push(`hebrew:${letter.key}`);
+      }
+    }
+  }
+
   for (const sephirah of sephiroth.map((item) => item.key)) {
     if (containsWord(text, sephirah)) keys.push(`sephirah:${sephirah}`);
   }
@@ -412,18 +451,29 @@ const treePaths = [
 ];
 
 const zodiacSigns = [
-  { key: "aries", label: "Aries" },
-  { key: "taurus", label: "Taurus" },
-  { key: "gemini", label: "Gemini" },
-  { key: "cancer", label: "Cancer" },
-  { key: "leo", label: "Leo" },
-  { key: "virgo", label: "Virgo" },
-  { key: "libra", label: "Libra" },
-  { key: "scorpio", label: "Scorpio" },
-  { key: "sagittarius", label: "Sagittarius" },
-  { key: "capricorn", label: "Capricorn" },
-  { key: "aquarius", label: "Aquarius" },
-  { key: "pisces", label: "Pisces" }
+  { key: "aries", label: "Aries", glyph: "♈" },
+  { key: "taurus", label: "Taurus", glyph: "♉" },
+  { key: "gemini", label: "Gemini", glyph: "♊" },
+  { key: "cancer", label: "Cancer", glyph: "♋" },
+  { key: "leo", label: "Leo", glyph: "♌" },
+  { key: "virgo", label: "Virgo", glyph: "♍" },
+  { key: "libra", label: "Libra", glyph: "♎" },
+  { key: "scorpio", label: "Scorpio", glyph: "♏" },
+  { key: "sagittarius", label: "Sagittarius", glyph: "♐" },
+  { key: "capricorn", label: "Capricorn", glyph: "♑" },
+  { key: "aquarius", label: "Aquarius", glyph: "♒" },
+  { key: "pisces", label: "Pisces", glyph: "♓" }
+];
+
+const hebrewLetters = [
+  { key: "aleph", glyph: "א" }, { key: "beth", glyph: "ב" }, { key: "gimel", glyph: "ג" },
+  { key: "daleth", glyph: "ד" }, { key: "heh", glyph: "ה" }, { key: "vav", glyph: "ו" },
+  { key: "zayin", glyph: "ז" }, { key: "cheth", glyph: "ח" }, { key: "teth", glyph: "ט" },
+  { key: "yod", glyph: "י" }, { key: "kaph", glyph: "כ" }, { key: "lamed", glyph: "ל" },
+  { key: "mem", glyph: "מ" }, { key: "nun", glyph: "נ" }, { key: "samekh", glyph: "ס" },
+  { key: "ayin", glyph: "ע" }, { key: "peh", glyph: "פ" }, { key: "tzaddi", glyph: "צ" },
+  { key: "qoph", glyph: "ק" }, { key: "resh", glyph: "ר" }, { key: "shin", glyph: "ש" },
+  { key: "tav", glyph: "ת" }
 ];
 
 const planets = [
@@ -450,6 +500,7 @@ function renderDashboardVisuals(activation) {
     ${zodiacSvg(activation)}
     ${planetaryFrame(activation)}
     ${elementPentagramSvg(activation)}
+    ${hebrewLetterFrame(activation)}
   `;
 }
 
@@ -473,7 +524,7 @@ function zodiacSvg(activation) {
       const angle = (index / zodiacSigns.length) * Math.PI * 2 - Math.PI / 2;
       const x = 150 + Math.cos(angle) * 104;
       const y = 150 + Math.sin(angle) * 104;
-      return `<g ${activeAttrs(activation, `zodiac:${sign.key}`)}><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="19"></circle><text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}">${sign.label.slice(0, 3)}</text></g>`;
+      return `<g ${activeAttrs(activation, `zodiac:${sign.key}`)}><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="21"></circle><text class="zodiac-glyph" x="${x.toFixed(1)}" y="${(y - 2).toFixed(1)}">${sign.glyph}</text><text x="${x.toFixed(1)}" y="${(y + 13).toFixed(1)}">${sign.label.slice(0, 3)}</text></g>`;
     }).join("")}
   </svg></article>`;
 }
@@ -489,6 +540,20 @@ function elementPentagramSvg(activation) {
     <path class="pentagram-line" d="M150 25 L75 262 L270 118 L30 118 L225 262 Z"></path>
     ${pentagramPoints.map((point) => `<g ${activeAttrs(activation, `element:${point.key}`)}><circle cx="${point.x}" cy="${point.y}" r="23"></circle><text x="${point.x}" y="${point.y + 4}">${point.label}</text></g>`).join("")}
   </svg></article>`;
+}
+
+function hebrewLetterFrame(activation) {
+  return `<article class="diagram-panel hebrew-panel"><h3>Hebrew Letters</h3><div class="hebrew-grid">
+    ${hebrewLetters.map((letter) => `<div ${activeAttrs(activation, `hebrew:${letter.key}`)}><span>${letter.glyph}</span><small>${titleCase(letter.key)}</small></div>`).join("")}
+  </div></article>`;
+}
+
+function setActiveDashboardSubview(view) {
+  const listActive = view === "list";
+  visualDashboardTab.classList.toggle("active", !listActive);
+  listDashboardTab.classList.toggle("active", listActive);
+  visualDashboardView.classList.toggle("active", !listActive);
+  listDashboardView.classList.toggle("active", listActive);
 }
 
 renderDashboardVisuals(createActivationModel([]));

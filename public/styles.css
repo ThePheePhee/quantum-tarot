@@ -171,21 +171,34 @@ h1 {
   font: 700 1rem/1 system-ui, sans-serif;
 }
 
-.tabs {
+.tabs,
+.subtabs {
   display: flex;
   gap: 0.5rem;
   margin: 0 0 18px;
   border-bottom: 1px solid var(--line);
 }
 
-.tab {
+.subtabs {
+  margin-top: -4px;
+  margin-bottom: 16px;
+}
+
+.tab,
+.subtab {
   min-height: 40px;
   border-color: transparent;
   border-bottom-color: var(--line);
   color: var(--muted);
 }
 
-.tab.active {
+.subtab {
+  min-height: 34px;
+  font-size: 0.68rem;
+}
+
+.tab.active,
+.subtab.active {
   color: var(--gold);
   border-bottom-color: var(--gold);
   background: rgba(111, 20, 24, 0.16);
@@ -196,6 +209,14 @@ h1 {
 }
 
 .view.active {
+  display: block;
+}
+
+.dashboard-subview {
+  display: none;
+}
+
+.dashboard-subview.active {
   display: block;
 }
 
@@ -324,8 +345,8 @@ h1 {
 
 .spread {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(clamp(112px, calc(720px / var(--card-count, 3)), 330px), 1fr));
-  gap: clamp(12px, 2vw, 28px);
+  grid-template-columns: repeat(auto-fit, minmax(clamp(58px, calc(820px / var(--card-count, 3)), 330px), 1fr));
+  gap: clamp(7px, 1.4vw, 24px);
   align-items: start;
 }
 
@@ -359,17 +380,20 @@ h1 {
 
 .dashboard-visuals {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
   margin: 0 0 18px;
 }
 
 .diagram-panel {
   min-width: 0;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid rgba(202, 164, 90, 0.22);
   border-radius: 7px;
-  background: rgba(10, 8, 8, 0.86);
+  background:
+    linear-gradient(180deg, rgba(111, 20, 24, 0.12), transparent 120px),
+    rgba(10, 8, 8, 0.88);
+  box-shadow: inset 0 0 0 1px rgba(246, 220, 160, 0.03);
 }
 
 .diagram-panel h3 {
@@ -396,13 +420,14 @@ h1 {
 
 .diagram-panel line.active,
 .diagram-panel .active circle,
-.planet-frame .active {
-  filter: drop-shadow(0 0 calc(6px + 15px * var(--strength)) rgba(202, 164, 90, 0.95));
+.planet-frame .active,
+.hebrew-grid .active {
+  filter: drop-shadow(0 0 calc(3px + 9px * var(--strength)) rgba(202, 164, 90, 0.72));
 }
 
 .diagram-panel line.active {
-  stroke: rgba(246, 220, 160, calc(0.38 + 0.62 * var(--strength)));
-  stroke-width: calc(2px + 5px * var(--strength));
+  stroke: rgba(246, 220, 160, calc(0.32 + 0.4 * var(--strength)));
+  stroke-width: calc(2px + 2px * var(--strength));
 }
 
 .diagram-panel g circle {
@@ -412,9 +437,9 @@ h1 {
 }
 
 .diagram-panel g.active circle {
-  fill: rgba(111, 20, 24, calc(0.32 + 0.38 * var(--strength)));
-  stroke: rgba(246, 220, 160, calc(0.62 + 0.38 * var(--strength)));
-  stroke-width: calc(1.5px + 3px * var(--strength));
+  fill: rgba(5, 4, 4, 0.96);
+  stroke: rgba(246, 220, 160, calc(0.52 + 0.34 * var(--strength)));
+  stroke-width: calc(1.5px + 1.8px * var(--strength));
 }
 
 .diagram-panel text {
@@ -426,6 +451,10 @@ h1 {
 
 .diagram-panel g.active text {
   fill: var(--ink);
+}
+
+.diagram-panel .zodiac-glyph {
+  font-size: 11px;
 }
 
 .pentagram-line {
@@ -451,8 +480,10 @@ h1 {
 }
 
 .planet-frame .active {
-  border-color: rgba(246, 220, 160, calc(0.5 + 0.5 * var(--strength)));
-  background: rgba(111, 20, 24, calc(0.2 + 0.42 * var(--strength)));
+  border-color: rgba(246, 220, 160, calc(0.42 + 0.34 * var(--strength)));
+  background:
+    radial-gradient(circle, rgba(202, 164, 90, calc(0.06 + 0.12 * var(--strength))), transparent 65%),
+    rgba(5, 4, 4, 0.78);
 }
 
 .planet-frame span {
@@ -464,6 +495,42 @@ h1 {
 .planet-frame small {
   color: var(--muted);
   font: 700 0.62rem/1 system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+.hebrew-panel {
+  grid-column: span 2;
+}
+
+.hebrew-grid {
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.hebrew-grid div {
+  display: grid;
+  place-items: center;
+  min-height: 52px;
+  border: 1px solid rgba(202, 164, 90, 0.18);
+  border-radius: 7px;
+  background: rgba(5, 4, 4, 0.68);
+}
+
+.hebrew-grid .active {
+  border-color: rgba(246, 220, 160, calc(0.45 + 0.35 * var(--strength)));
+  box-shadow: inset 0 0 18px rgba(202, 164, 90, calc(0.04 + 0.12 * var(--strength)));
+}
+
+.hebrew-grid span {
+  color: var(--gold);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.hebrew-grid small {
+  color: var(--muted);
+  font: 700 0.54rem/1 system-ui, sans-serif;
   letter-spacing: 0;
 }
 
@@ -479,15 +546,34 @@ h1 {
   background: rgba(10, 8, 8, 0.86);
 }
 
-.correspondence-item h3,
+.card-correspondence-group {
+  padding: 14px;
+  border: 1px solid rgba(202, 164, 90, 0.22);
+  border-radius: 7px;
+  background: rgba(10, 8, 8, 0.82);
+}
+
+.card-correspondence-group > h3 {
+  margin: 0 0 10px;
+  color: var(--gold);
+  font-size: 1.25rem;
+  font-weight: 400;
+}
+
+.card-correspondence-items {
+  display: grid;
+  gap: 8px;
+}
+
+.correspondence-item h4,
 .correspondence-item p {
   margin: 0;
 }
 
-.correspondence-item h3 {
+.correspondence-item h4 {
   margin-top: 0.25rem;
   color: var(--ink);
-  font-size: 1.25rem;
+  font-size: 1.05rem;
   font-weight: 400;
 }
 
@@ -543,12 +629,12 @@ h1 {
 }
 
 .card-detail {
-  padding: 14px 2px 0;
+  padding: clamp(6px, 1.2vw, 14px) 2px 0;
 }
 
 .card-detail h2 {
   margin: 0.25rem 0;
-  font-size: clamp(1.3rem, 3vw, 2rem);
+  font-size: clamp(0.78rem, calc(7.2rem / var(--card-count, 3)), 2rem);
   font-weight: 400;
   line-height: 1;
 }
@@ -588,10 +674,22 @@ h1 {
   .dashboard-visuals {
     grid-template-columns: 1fr;
   }
+
+  .hebrew-panel {
+    grid-column: auto;
+  }
+
+  .hebrew-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 761px) and (max-width: 1080px) {
   .dashboard-visuals {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hebrew-panel {
+    grid-column: span 2;
   }
 }
