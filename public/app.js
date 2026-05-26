@@ -1,4 +1,5 @@
 const drawButton = document.querySelector("#drawButton");
+const drawCountInput = document.querySelector("#drawCount");
 const statusText = document.querySelector("#statusText");
 const spread = document.querySelector("#spread");
 const receiptState = document.querySelector("#receiptState");
@@ -16,10 +17,10 @@ const dashboardTab = document.querySelector("#dashboardTab");
 const drawView = document.querySelector("#drawView");
 const dashboardView = document.querySelector("#dashboardView");
 const dashboardStatus = document.querySelector("#dashboardStatus");
+const dashboardVisuals = document.querySelector("#dashboardVisuals");
 const correspondenceList = document.querySelector("#correspondenceList");
 const refreshDashboardButton = document.querySelector("#refreshDashboardButton");
 
-const positions = ["Past", "Present", "Future"];
 const timingMs = [];
 let seeded = false;
 let previousPhraseLength = 0;
@@ -86,7 +87,8 @@ async function refreshStatus() {
 
 async function requestDraw() {
   try {
-    const result = await postJson("/api/draw");
+    const count = normalizeDrawCount();
+    const result = await postJson("/api/draw", { count });
     renderSpread(result.cards);
     statusText.textContent = `Spread drawn from seed ${result.seedVersion}.`;
     await loadDashboard();
@@ -121,6 +123,7 @@ async function requestLocalSeed(path, button, successMessage) {
 }
 
 function renderSpread(cards) {
+  spread.style.setProperty("--card-count", String(cards.length));
   spread.replaceChildren(
     ...cards.map((card, index) => {
       const article = document.createElement("article");
@@ -136,7 +139,7 @@ function renderSpread(cards) {
 
       const position = document.createElement("p");
       position.className = "position";
-      position.textContent = positions[index];
+      position.textContent = card.position ?? `Card ${index + 1}`;
 
       const name = document.createElement("h2");
       name.textContent = card.name;
@@ -151,6 +154,7 @@ function renderSpread(cards) {
       return article;
     })
   );
+  drawButton.textContent = `Draw ${cards.length} ${cards.length === 1 ? "card" : "cards"}`;
 }
 
 async function postJson(path, body) {
@@ -271,6 +275,8 @@ async function fetchJson(path) {
 }
 
 function renderCorrespondences(correspondences) {
+  renderDashboardVisuals(createActivationModel(correspondences));
+
   if (!correspondences.length) {
     correspondenceList.replaceChildren(emptyMessage("No correspondences found for this draw."));
     return;
@@ -283,7 +289,7 @@ function renderCorrespondences(correspondences) {
 
       const meta = document.createElement("p");
       meta.className = "correspondence-meta";
-      meta.textContent = `${correspondence.cardName} · ${correspondence.type}${correspondence.layer ? ` · ${correspondence.layer}` : ""}`;
+      meta.textContent = `${correspondence.cardName} - ${correspondence.type}${correspondence.layer ? ` - ${correspondence.layer}` : ""}`;
 
       const title = document.createElement("h3");
       title.textContent = correspondence.displayName;
@@ -299,7 +305,7 @@ function renderCorrespondences(correspondences) {
         correspondence.certainty,
         correspondence.reviewStatus,
         correspondence.sourceReference
-      ].filter(Boolean).join(" · ");
+      ].filter(Boolean).join(" - ");
 
       article.append(meta, title, value, detail);
       return article;
@@ -313,3 +319,176 @@ function emptyMessage(message) {
   element.textContent = message;
   return element;
 }
+
+function normalizeDrawCount() {
+  const value = Number(drawCountInput.value || 3);
+  return Number.isSafeInteger(value) ? Math.max(1, Math.min(12, value)) : 3;
+}
+
+drawCountInput.addEventListener("input", () => {
+  const count = normalizeDrawCount();
+  drawCountInput.value = String(count);
+  drawButton.textContent = `Draw ${count} ${count === 1 ? "card" : "cards"}`;
+});
+
+function createActivationModel(correspondences) {
+  const counts = new Map();
+
+  for (const correspondence of correspondences) {
+    for (const key of activationKeys(correspondence)) {
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+
+  const max = Math.max(1, ...counts.values());
+
+  return {
+    count(key) {
+      return counts.get(key) ?? 0;
+    },
+    strength(key) {
+      return ((counts.get(key) ?? 0) / max).toFixed(2);
+    }
+  };
+}
+
+function activationKeys(correspondence) {
+  const text = [
+    correspondence.type,
+    correspondence.displayName,
+    correspondence.value,
+    correspondence.description
+  ].join(" ").toLowerCase();
+  const keys = [];
+
+  for (const element of ["spirit", "fire", "water", "air", "earth"]) {
+    if (containsWord(text, element)) keys.push(`element:${element}`);
+  }
+
+  for (const planet of ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"]) {
+    if (containsWord(text, planet)) keys.push(`planet:${planet}`);
+  }
+
+  for (const sign of zodiacSigns.map((item) => item.key)) {
+    if (containsWord(text, sign.replace("-", " "))) keys.push(`zodiac:${sign}`);
+  }
+
+  const pathMatch = text.match(/path\s+([1-3][0-9]|[1-9])/);
+  if (pathMatch) keys.push(`path:${pathMatch[1]}`);
+
+  for (const sephirah of sephiroth.map((item) => item.key)) {
+    if (containsWord(text, sephirah)) keys.push(`sephirah:${sephirah}`);
+  }
+
+  return keys;
+}
+
+function containsWord(text, word) {
+  return new RegExp(`(^|[^a-z])${word}([^a-z]|$)`).test(text);
+}
+
+const sephiroth = [
+  { key: "kether", label: "Kether", x: 150, y: 28 },
+  { key: "chokmah", label: "Chokmah", x: 230, y: 82 },
+  { key: "binah", label: "Binah", x: 70, y: 82 },
+  { key: "chesed", label: "Chesed", x: 230, y: 155 },
+  { key: "geburah", label: "Geburah", x: 70, y: 155 },
+  { key: "tiphareth", label: "Tiphareth", x: 150, y: 205 },
+  { key: "netzach", label: "Netzach", x: 230, y: 270 },
+  { key: "hod", label: "Hod", x: 70, y: 270 },
+  { key: "yesod", label: "Yesod", x: 150, y: 328 },
+  { key: "malkuth", label: "Malkuth", x: 150, y: 388 }
+];
+
+const treePaths = [
+  ["11", 150, 28, 230, 82], ["12", 150, 28, 70, 82], ["13", 150, 28, 150, 205],
+  ["14", 230, 82, 70, 82], ["15", 230, 82, 150, 205], ["16", 70, 82, 150, 205],
+  ["17", 230, 82, 230, 155], ["18", 70, 82, 70, 155], ["19", 230, 155, 70, 155],
+  ["20", 230, 155, 150, 205], ["21", 70, 155, 150, 205], ["22", 230, 155, 230, 270],
+  ["23", 70, 155, 70, 270], ["24", 150, 205, 230, 270], ["25", 150, 205, 70, 270],
+  ["26", 70, 155, 230, 270], ["27", 230, 155, 70, 270], ["28", 230, 270, 150, 328],
+  ["29", 70, 270, 150, 328], ["30", 150, 205, 150, 328], ["31", 150, 328, 150, 388],
+  ["32", 70, 270, 230, 270]
+];
+
+const zodiacSigns = [
+  { key: "aries", label: "Aries" },
+  { key: "taurus", label: "Taurus" },
+  { key: "gemini", label: "Gemini" },
+  { key: "cancer", label: "Cancer" },
+  { key: "leo", label: "Leo" },
+  { key: "virgo", label: "Virgo" },
+  { key: "libra", label: "Libra" },
+  { key: "scorpio", label: "Scorpio" },
+  { key: "sagittarius", label: "Sagittarius" },
+  { key: "capricorn", label: "Capricorn" },
+  { key: "aquarius", label: "Aquarius" },
+  { key: "pisces", label: "Pisces" }
+];
+
+const planets = [
+  { key: "saturn", entity: "&#9796;" },
+  { key: "jupiter", entity: "&#9795;" },
+  { key: "mars", entity: "&#9794;" },
+  { key: "sun", entity: "&#9737;" },
+  { key: "venus", entity: "&#9792;" },
+  { key: "mercury", entity: "&#9791;" },
+  { key: "moon", entity: "&#9789;" }
+];
+
+const pentagramPoints = [
+  { key: "spirit", label: "Spirit", x: 150, y: 25 },
+  { key: "water", label: "Water", x: 30, y: 118 },
+  { key: "fire", label: "Fire", x: 270, y: 118 },
+  { key: "earth", label: "Earth", x: 75, y: 262 },
+  { key: "air", label: "Air", x: 225, y: 262 }
+];
+
+function renderDashboardVisuals(activation) {
+  dashboardVisuals.innerHTML = `
+    ${treeOfLifeSvg(activation)}
+    ${zodiacSvg(activation)}
+    ${planetaryFrame(activation)}
+    ${elementPentagramSvg(activation)}
+  `;
+}
+
+function activeAttrs(activation, key) {
+  const count = activation.count(key);
+  const strength = activation.strength(key);
+  return `data-count="${count}" style="--strength:${strength}" class="${count ? "active" : ""}"`;
+}
+
+function treeOfLifeSvg(activation) {
+  return `<article class="diagram-panel"><h3>Tree of Life</h3><svg viewBox="0 0 300 420" role="img" aria-label="Tree of Life correspondences">
+    ${treePaths.map(([id, x1, y1, x2, y2]) => `<line ${activeAttrs(activation, `path:${id}`)} x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line>`).join("")}
+    ${sephiroth.map((item) => `<g ${activeAttrs(activation, `sephirah:${item.key}`)}><circle cx="${item.x}" cy="${item.y}" r="18"></circle><text x="${item.x}" y="${item.y + 4}">${item.label}</text></g>`).join("")}
+  </svg></article>`;
+}
+
+function zodiacSvg(activation) {
+  return `<article class="diagram-panel"><h3>Zodiac</h3><svg viewBox="0 0 300 300" role="img" aria-label="Zodiac correspondences">
+    <circle class="diagram-ring" cx="150" cy="150" r="106"></circle>
+    ${zodiacSigns.map((sign, index) => {
+      const angle = (index / zodiacSigns.length) * Math.PI * 2 - Math.PI / 2;
+      const x = 150 + Math.cos(angle) * 104;
+      const y = 150 + Math.sin(angle) * 104;
+      return `<g ${activeAttrs(activation, `zodiac:${sign.key}`)}><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="19"></circle><text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}">${sign.label.slice(0, 3)}</text></g>`;
+    }).join("")}
+  </svg></article>`;
+}
+
+function planetaryFrame(activation) {
+  return `<article class="diagram-panel"><h3>Planets</h3><div class="planet-frame">
+    ${planets.map((planet) => `<div ${activeAttrs(activation, `planet:${planet.key}`)}><span>${planet.entity}</span><small>${titleCase(planet.key)}</small></div>`).join("")}
+  </div></article>`;
+}
+
+function elementPentagramSvg(activation) {
+  return `<article class="diagram-panel"><h3>Elements</h3><svg viewBox="0 0 300 300" role="img" aria-label="Elemental pentagram correspondences">
+    <path class="pentagram-line" d="M150 25 L75 262 L270 118 L30 118 L225 262 Z"></path>
+    ${pentagramPoints.map((point) => `<g ${activeAttrs(activation, `element:${point.key}`)}><circle cx="${point.x}" cy="${point.y}" r="23"></circle><text x="${point.x}" y="${point.y + 4}">${point.label}</text></g>`).join("")}
+  </svg></article>`;
+}
+
+renderDashboardVisuals(createActivationModel([]));

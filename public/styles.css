@@ -145,6 +145,32 @@ h1 {
   padding: 22px 0;
 }
 
+.draw-count {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 44px;
+  padding: 0 0.85rem;
+  border: 1px solid rgba(202, 164, 90, 0.24);
+  border-radius: 4px;
+  background: rgba(10, 8, 8, 0.74);
+}
+
+.draw-count span {
+  color: var(--muted);
+  font: 700 0.68rem/1 system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.draw-count input {
+  width: 3.5rem;
+  border: 0;
+  color: var(--gold);
+  background: transparent;
+  font: 700 1rem/1 system-ui, sans-serif;
+}
+
 .tabs {
   display: flex;
   gap: 0.5rem;
@@ -298,8 +324,8 @@ h1 {
 
 .spread {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: clamp(16px, 3vw, 34px);
+  grid-template-columns: repeat(auto-fit, minmax(clamp(112px, calc(720px / var(--card-count, 3)), 330px), 1fr));
+  gap: clamp(12px, 2vw, 28px);
   align-items: start;
 }
 
@@ -329,6 +355,116 @@ h1 {
   font: 700 0.75rem/1.5 system-ui, sans-serif;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.dashboard-visuals {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 18px;
+}
+
+.diagram-panel {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(202, 164, 90, 0.22);
+  border-radius: 7px;
+  background: rgba(10, 8, 8, 0.86);
+}
+
+.diagram-panel h3 {
+  margin: 0 0 8px;
+  color: var(--gold);
+  font: 700 0.72rem/1.3 system-ui, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.diagram-panel svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.diagram-panel line,
+.diagram-panel .pentagram-line,
+.diagram-panel .diagram-ring {
+  fill: none;
+  stroke: rgba(202, 164, 90, 0.22);
+  stroke-width: 2;
+}
+
+.diagram-panel line.active,
+.diagram-panel .active circle,
+.planet-frame .active {
+  filter: drop-shadow(0 0 calc(6px + 15px * var(--strength)) rgba(202, 164, 90, 0.95));
+}
+
+.diagram-panel line.active {
+  stroke: rgba(246, 220, 160, calc(0.38 + 0.62 * var(--strength)));
+  stroke-width: calc(2px + 5px * var(--strength));
+}
+
+.diagram-panel g circle {
+  fill: rgba(5, 4, 4, 0.94);
+  stroke: rgba(202, 164, 90, 0.36);
+  stroke-width: 1.4;
+}
+
+.diagram-panel g.active circle {
+  fill: rgba(111, 20, 24, calc(0.32 + 0.38 * var(--strength)));
+  stroke: rgba(246, 220, 160, calc(0.62 + 0.38 * var(--strength)));
+  stroke-width: calc(1.5px + 3px * var(--strength));
+}
+
+.diagram-panel text {
+  fill: var(--muted);
+  font: 700 8px/1 system-ui, sans-serif;
+  letter-spacing: 0;
+  text-anchor: middle;
+}
+
+.diagram-panel g.active text {
+  fill: var(--ink);
+}
+
+.pentagram-line {
+  stroke-width: 2.4 !important;
+}
+
+.planet-frame {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-height: 260px;
+  align-content: center;
+}
+
+.planet-frame div {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  min-height: 70px;
+  border: 1px solid rgba(202, 164, 90, 0.22);
+  border-radius: 50%;
+  background: rgba(5, 4, 4, 0.72);
+}
+
+.planet-frame .active {
+  border-color: rgba(246, 220, 160, calc(0.5 + 0.5 * var(--strength)));
+  background: rgba(111, 20, 24, calc(0.2 + 0.42 * var(--strength)));
+}
+
+.planet-frame span {
+  color: var(--gold);
+  font-size: 1.9rem;
+  line-height: 1;
+}
+
+.planet-frame small {
+  color: var(--muted);
+  font: 700 0.62rem/1 system-ui, sans-serif;
+  letter-spacing: 0;
 }
 
 .correspondence-list {
@@ -447,5 +583,15 @@ h1 {
 
   .spread {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-visuals {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1080px) {
+  .dashboard-visuals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

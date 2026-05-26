@@ -37,6 +37,10 @@ interface LocalSeedRequest {
   readonly letterCount?: unknown;
 }
 
+interface DrawRequest {
+  readonly count?: unknown;
+}
+
 let rng: SeededRng | null = null;
 let seedVersion = 0;
 let lastReseededAt = 0;
@@ -71,7 +75,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === "POST" && url.pathname === "/api/draw") {
-      return handleDraw(response);
+      return handleDraw(request, response);
     }
 
     if (request.method === "GET" && url.pathname === "/api/dashboard") {
@@ -214,14 +218,16 @@ async function handleCombinedReseed(request: IncomingMessage, response: ServerRe
   }
 }
 
-function handleDraw(response: ServerResponse): void {
+async function handleDraw(request: IncomingMessage, response: ServerResponse): Promise<void> {
   if (!rng) {
     return sendJson(response, { error: "Seed local entropy before drawing." }, 409);
   }
 
-  const numbers = drawDistinctNumbers(rng, 3, 78);
+  const drawRequest = (await readOptionalJsonBody(request)) as DrawRequest;
+  const count = normalizeDrawCount(drawRequest.count);
+  const numbers = drawDistinctNumbers(rng, count, 78);
   const cards = numbers.map((number, index) => ({
-    position: ["Past", "Present", "Future"][index],
+    position: positionLabel(index, count),
     ...getCardByNumber(number)
   }));
   latestDraw = cards;
@@ -332,6 +338,24 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
   }
 }
 
+async function readOptionalJsonBody(request: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+
+  if (chunks.length === 0 || Buffer.concat(chunks).length === 0) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    throw new HttpError("Request body must be valid JSON.", 400);
+  }
+}
+
 function contentType(pathname: string): string {
   switch (extname(pathname)) {
     case ".css":
@@ -361,6 +385,24 @@ function localSeedBytes(timingSum: number): Uint8Array {
   }
 
   return bytes;
+}
+
+function normalizeDrawCount(value: unknown): number {
+  const count = Number(value ?? 3);
+
+  if (!Number.isSafeInteger(count) || count < 1 || count > 12) {
+    throw new HttpError("Draw count must be an integer between 1 and 12.", 400);
+  }
+
+  return count;
+}
+
+function positionLabel(index: number, count: number): string {
+  if (count === 3) {
+    return ["Past", "Present", "Future"][index] ?? `Card ${index + 1}`;
+  }
+
+  return `Card ${index + 1}`;
 }
 
 class HttpError extends Error {
