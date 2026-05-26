@@ -43,12 +43,13 @@ export async function getDrawCorrespondences(cards: readonly TarotCard[]): Promi
   const correspondencesById = new Map(correspondences.map((correspondence) => [correspondence.id, correspondence]));
   const selected = new Set(cards.map(ontologyCardIdForTarotCard).filter(Boolean));
 
-  return cards.flatMap((card) => {
+  return cards.flatMap((card, drawIndex) => {
     const ontologyCardId = ontologyCardIdForTarotCard(card);
     const ontologyCard = ontologyCardId ? cardsByStableId.get(ontologyCardId) : undefined;
 
     if (!ontologyCard?.id) {
       return [{
+        drawIndex,
         cardNumber: card.number,
         cardName: card.name,
         ontologyCardId,
@@ -71,6 +72,7 @@ export async function getDrawCorrespondences(cards: readonly TarotCard[]): Promi
         const type = typesById.get(correspondence?.type ?? 0);
 
         return {
+          drawIndex,
           cardNumber: card.number,
           cardName: card.name,
           ontologyCardId: ontologyCard.card_id,

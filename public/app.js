@@ -1,7 +1,7 @@
 const drawButton = document.querySelector("#drawButton");
 const drawCountInput = document.querySelector("#drawCount");
-const drawModeSelect = document.querySelector("#drawMode");
 const deckCountInput = document.querySelector("#deckCount");
+const replacementToggle = document.querySelector("#replacementToggle");
 const statusText = document.querySelector("#statusText");
 const spread = document.querySelector("#spread");
 const receiptState = document.querySelector("#receiptState");
@@ -339,9 +339,10 @@ function renderCorrespondenceItem(correspondence) {
 function groupByCard(correspondences) {
   const output = new Map();
   for (const correspondence of correspondences) {
-    const group = output.get(correspondence.cardName) ?? [];
+    const cardLabel = `Card ${(correspondence.drawIndex ?? 0) + 1}: ${correspondence.cardName}`;
+    const group = output.get(cardLabel) ?? [];
     group.push(correspondence);
-    output.set(correspondence.cardName, group);
+    output.set(cardLabel, group);
   }
   return output;
 }
@@ -358,35 +359,52 @@ function normalizeDrawCount() {
 }
 
 drawCountInput.addEventListener("input", syncDrawControls);
-drawModeSelect.addEventListener("change", syncDrawControls);
 deckCountInput.addEventListener("input", syncDrawControls);
+replacementToggle.addEventListener("change", syncDrawControls);
 
 function normalizeDrawSettings() {
-  const mode = drawModeSelect.value;
-  const decks = Math.max(1, Math.min(20, Number(deckCountInput.value || 1)));
-  const requestedCount = Math.max(1, Number(drawCountInput.value || 3));
-  const max = mode === "single" ? 78 : mode === "multi" ? decks * 78 : Number.POSITIVE_INFINITY;
+  const replacement = replacementToggle.checked;
+  const decks = positiveInteger(deckCountInput.value, 1, 20);
+  const requestedCount = positiveInteger(drawCountInput.value, 3, Number.POSITIVE_INFINITY);
+  const max = replacement ? Number.POSITIVE_INFINITY : decks * 78;
   const count = Math.min(requestedCount, max);
 
-  return { mode, decks, count };
+  return { replacement, decks, count };
 }
 
 function syncDrawControls() {
   const settings = normalizeDrawSettings();
   deckCountInput.value = String(settings.decks);
-  deckCountInput.closest("label").hidden = settings.mode !== "multi";
-  drawCountInput.max = settings.mode === "replacement" ? "" : String(settings.mode === "single" ? 78 : settings.decks * 78);
   drawCountInput.value = String(settings.count);
   drawButton.textContent = `Draw ${settings.count} ${settings.count === 1 ? "card" : "cards"}`;
 }
 
+function positiveInteger(value, fallback, max) {
+  const digits = String(value).replace(/[^\d]/g, "");
+  const numberValue = Number(digits);
+
+  if (!Number.isSafeInteger(numberValue) || numberValue < 1) {
+    return fallback;
+  }
+
+  return Math.min(numberValue, max);
+}
+
 function createActivationModel(correspondences) {
   const counts = new Map();
+  const seenPerCard = new Map();
 
   for (const correspondence of correspondences) {
+    const cardKey = `${correspondence.drawIndex ?? 0}:${correspondence.cardName}:${correspondence.ontologyCardId ?? ""}`;
+    const seen = seenPerCard.get(cardKey) ?? new Set();
+
     for (const key of activationKeys(correspondence)) {
+      if (seen.has(key)) continue;
+      seen.add(key);
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
+
+    seenPerCard.set(cardKey, seen);
   }
 
   const max = Math.max(1, ...counts.values());
@@ -397,8 +415,20 @@ function createActivationModel(correspondences) {
     },
     strength(key) {
       return ((counts.get(key) ?? 0) / max).toFixed(2);
+    },
+    heat(key) {
+      const count = counts.get(key) ?? 0;
+      return count ? heatColor(count / max) : "rgba(202, 164, 90, 0.22)";
     }
   };
+}
+
+function heatColor(ratio) {
+  if (ratio >= 0.82) return "#ff2f2f";
+  if (ratio >= 0.62) return "#ff8a1d";
+  if (ratio >= 0.42) return "#ffd23f";
+  if (ratio >= 0.22) return "#9ee66e";
+  return "#45c7ff";
 }
 
 function activationKeys(correspondence) {
@@ -525,7 +555,8 @@ function renderDashboardVisuals(activation) {
 function activeAttrs(activation, key) {
   const count = activation.count(key);
   const strength = activation.strength(key);
-  return `data-count="${count}" style="--strength:${strength}" class="${count ? "active" : ""}" data-label="${count ? count : ""}"`;
+  const heat = activation.heat(key);
+  return `data-count="${count}" style="--strength:${strength};--heat:${heat}" class="${count ? "active" : ""}" data-label="${count ? count : ""}"`;
 }
 
 function treeOfLifeSvg(activation) {

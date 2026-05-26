@@ -35,21 +35,17 @@
       </section>
 
       <section class="controls" aria-label="Reading controls">
-        <label class="draw-mode" for="drawMode">
-          <span>Mode</span>
-          <select id="drawMode">
-            <option value="single">1 deck, no replacement</option>
-            <option value="multi">Several decks</option>
-            <option value="replacement">With replacement</option>
-          </select>
-        </label>
         <label class="draw-count deck-count" for="deckCount">
           <span>Decks</span>
-          <input id="deckCount" type="number" min="1" max="20" step="1" value="2">
+          <input id="deckCount" type="text" inputmode="numeric" value="1">
+        </label>
+        <label class="replacement-toggle" for="replacementToggle">
+          <input id="replacementToggle" type="checkbox">
+          <span>Draw with replacement</span>
         </label>
         <label class="draw-count" for="drawCount">
           <span>Cards</span>
-          <input id="drawCount" type="number" min="1" max="100" step="1" value="3">
+          <input id="drawCount" type="text" inputmode="numeric" value="3">
         </label>
         <button class="primary" id="drawButton" type="button" disabled>Draw 3 cards</button>
         <p class="status" id="statusText">Awaiting local entropy seed.</p>

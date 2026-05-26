@@ -39,8 +39,8 @@ interface LocalSeedRequest {
 
 interface DrawRequest {
   readonly count?: unknown;
-  readonly mode?: unknown;
   readonly decks?: unknown;
+  readonly replacement?: unknown;
 }
 
 let rng: SeededRng | null = null;
@@ -227,10 +227,10 @@ async function handleDraw(request: IncomingMessage, response: ServerResponse): P
 
   try {
     const drawRequest = (await readOptionalJsonBody(request)) as DrawRequest;
-    const mode = normalizeDrawMode(drawRequest.mode);
+    const replacement = normalizeReplacement(drawRequest.replacement);
     const decks = normalizeDeckCount(drawRequest.decks);
-    const count = normalizeDrawCount(drawRequest.count, mode, decks);
-    const numbers = drawNumbers(rng, count, mode, decks);
+    const count = normalizeDrawCount(drawRequest.count, replacement, decks);
+    const numbers = drawNumbers(rng, count, replacement, decks);
     const cards = numbers.map((number, index) => ({
       position: positionLabel(index, count),
       ...getCardByNumber(number)
@@ -399,30 +399,25 @@ function localSeedBytes(timingSum: number): Uint8Array {
   return bytes;
 }
 
-function normalizeDrawCount(value: unknown, mode: string, decks: number): number {
+function normalizeDrawCount(value: unknown, replacement: boolean, decks: number): number {
   const count = Number(value ?? 3);
 
   if (!Number.isSafeInteger(count) || count < 1) {
     throw new HttpError("Draw count must be a positive integer.", 400);
   }
 
-  if (mode === "single" && count > 78) {
-    throw new HttpError("A single deck without replacement can draw at most 78 cards.", 400);
-  }
-
-  if (mode === "multi" && count > decks * 78) {
-    throw new HttpError(`With ${decks} decks, the maximum draw is ${decks * 78} cards.`, 400);
+  if (!replacement && count > decks * 78) {
+    throw new HttpError(
+      `With ${decks} deck${decks === 1 ? "" : "s"} without replacement, the maximum draw is ${decks * 78} cards.`,
+      400
+    );
   }
 
   return count;
 }
 
-function normalizeDrawMode(value: unknown): "single" | "multi" | "replacement" {
-  if (value === "single" || value === "multi" || value === "replacement") {
-    return value;
-  }
-
-  return "single";
+function normalizeReplacement(value: unknown): boolean {
+  return value === true || value === "true";
 }
 
 function normalizeDeckCount(value: unknown): number {
@@ -435,15 +430,14 @@ function normalizeDeckCount(value: unknown): number {
   return decks;
 }
 
-function drawNumbers(provider: SeededRng, count: number, mode: string, decks: number): number[] {
-  if (mode === "replacement") {
+function drawNumbers(provider: SeededRng, count: number, replacement: boolean, decks: number): number[] {
+  if (replacement) {
     return Array.from({ length: count }, () => Math.floor(provider.nextFloat() * 78) + 1);
   }
 
   const numbers: number[] = [];
-  const cycles = mode === "multi" ? decks : 1;
 
-  for (let cycle = 0; cycle < cycles && numbers.length < count; cycle += 1) {
+  for (let cycle = 0; cycle < decks && numbers.length < count; cycle += 1) {
     const remaining = count - numbers.length;
     numbers.push(...drawDistinctNumbers(provider, Math.min(remaining, 78), 78));
   }

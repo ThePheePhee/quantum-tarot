@@ -45,6 +45,7 @@ export interface CardCorrespondence {
 }
 
 export interface DrawCorrespondence {
+  drawIndex: number;
   cardNumber: number;
   cardName: string;
   ontologyCardId: string | null;
