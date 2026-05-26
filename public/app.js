@@ -28,10 +28,15 @@ const visualDashboardTab = document.querySelector("#visualDashboardTab");
 const listDashboardTab = document.querySelector("#listDashboardTab");
 const visualDashboardView = document.querySelector("#visualDashboardView");
 const listDashboardView = document.querySelector("#listDashboardView");
+const dashboardTooltip = document.createElement("div");
 
 const timingMs = [];
 let seeded = false;
 let previousPhraseLength = 0;
+
+dashboardTooltip.className = "dashboard-tooltip";
+dashboardTooltip.hidden = true;
+document.body.append(dashboardTooltip);
 
 await refreshStatus();
 
@@ -83,6 +88,11 @@ dashboardTab.addEventListener("click", async () => {
 refreshDashboardButton.addEventListener("click", loadDashboard);
 visualDashboardTab.addEventListener("click", () => setActiveDashboardSubview("visual"));
 listDashboardTab.addEventListener("click", () => setActiveDashboardSubview("list"));
+dashboardVisuals.addEventListener("mouseover", showDashboardTooltip);
+dashboardVisuals.addEventListener("mousemove", moveDashboardTooltip);
+dashboardVisuals.addEventListener("mouseout", hideDashboardTooltip);
+dashboardVisuals.addEventListener("focusin", showDashboardTooltip);
+dashboardVisuals.addEventListener("focusout", hideDashboardTooltip);
 
 async function refreshStatus() {
   const response = await fetch("/api/status");
@@ -536,16 +546,22 @@ function drawControlMessage(decks, count, max, replacement) {
 
 function createActivationModel(correspondences) {
   const counts = new Map();
+  const cardsByKey = new Map();
   const seenPerCard = new Map();
 
   for (const correspondence of correspondences) {
     const cardKey = `${correspondence.drawIndex ?? 0}:${correspondence.cardName}:${correspondence.ontologyCardId ?? ""}`;
+    const cardLabel = `Card ${(correspondence.drawIndex ?? 0) + 1}: ${correspondence.cardName}`;
     const seen = seenPerCard.get(cardKey) ?? new Set();
 
     for (const key of activationKeys(correspondence)) {
       if (seen.has(key)) continue;
       seen.add(key);
       counts.set(key, (counts.get(key) ?? 0) + 1);
+
+      const cards = cardsByKey.get(key) ?? [];
+      cards.push(cardLabel);
+      cardsByKey.set(key, cards);
     }
 
     seenPerCard.set(cardKey, seen);
@@ -571,6 +587,9 @@ function createActivationModel(correspondences) {
     heat(key) {
       const count = counts.get(key) ?? 0;
       return count ? heatByCount.get(count) : "rgba(202, 164, 90, 0.22)";
+    },
+    cards(key) {
+      return cardsByKey.get(key) ?? [];
     }
   };
 }
@@ -721,17 +740,27 @@ function renderDashboardVisuals(activation) {
   `;
 }
 
-function activeAttrs(activation, key) {
+function activeAttrs(activation, key, label = labelForActivationKey(key)) {
   const count = activation.count(key);
   const strength = activation.strength(key);
   const heat = activation.heat(key);
-  return `data-count="${count}" style="--strength:${strength};--heat:${heat}" class="${count ? "active" : ""}" data-label="${count ? count : ""}"`;
+  const cards = activation.cards(key);
+  return [
+    `data-count="${count}"`,
+    `data-tooltip-title="${escapeAttribute(label)}"`,
+    `data-tooltip-count="${count}"`,
+    `data-tooltip-cards="${escapeAttribute(cards.join("|"))}"`,
+    `tabindex="0"`,
+    `style="--strength:${strength};--heat:${heat}"`,
+    `class="${count ? "active" : ""}"`,
+    `data-label="${count ? count : ""}"`
+  ].join(" ");
 }
 
 function treeOfLifeSvg(activation) {
   return `<article class="diagram-panel tree-panel"><h3>Tree of Life</h3><svg viewBox="0 0 300 420" role="img" aria-label="Tree of Life correspondences">
-    ${treePaths.map(([id, x1, y1, x2, y2]) => `<line ${activeAttrs(activation, `path:${id}`)} x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line>`).join("")}
-    ${sephiroth.map((item) => `<g ${activeAttrs(activation, `sephirah:${item.key}`)}><circle cx="${item.x}" cy="${item.y}" r="18"></circle><text x="${item.x}" y="${item.y + 4}">${item.label}</text></g>`).join("")}
+    ${treePaths.map(([id, x1, y1, x2, y2]) => `<line ${activeAttrs(activation, `path:${id}`, `Path ${id}`)} x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"></line>`).join("")}
+    ${sephiroth.map((item) => `<g ${activeAttrs(activation, `sephirah:${item.key}`, item.label)}><circle cx="${item.x}" cy="${item.y}" r="18"></circle><text x="${item.x}" y="${item.y + 4}">${item.label}</text></g>`).join("")}
   </svg></article>`;
 }
 
@@ -742,28 +771,117 @@ function zodiacSvg(activation) {
       const angle = (index / zodiacSigns.length) * Math.PI * 2 - Math.PI / 2;
       const x = 150 + Math.cos(angle) * 104;
       const y = 150 + Math.sin(angle) * 104;
-      return `<g ${activeAttrs(activation, `zodiac:${sign.key}`)}><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="21"></circle><text class="zodiac-glyph" x="${x.toFixed(1)}" y="${(y - 2).toFixed(1)}">${sign.glyph}</text><text x="${x.toFixed(1)}" y="${(y + 13).toFixed(1)}">${sign.label.slice(0, 3)}</text></g>`;
+      return `<g ${activeAttrs(activation, `zodiac:${sign.key}`, sign.label)}><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="21"></circle><text class="zodiac-glyph" x="${x.toFixed(1)}" y="${(y - 2).toFixed(1)}">${sign.glyph}</text><text x="${x.toFixed(1)}" y="${(y + 13).toFixed(1)}">${sign.label.slice(0, 3)}</text></g>`;
     }).join("")}
   </svg></article>`;
 }
 
 function planetaryFrame(activation) {
   return `<article class="diagram-panel planet-panel"><h3>Planets</h3><div class="planet-frame">
-    ${planets.map((planet) => `<div ${activeAttrs(activation, `planet:${planet.key}`)}><span>${planet.entity}</span><small>${titleCase(planet.key)}</small></div>`).join("")}
+    ${planets.map((planet) => `<div ${activeAttrs(activation, `planet:${planet.key}`, titleCase(planet.key))}><span>${planet.entity}</span><small>${titleCase(planet.key)}</small></div>`).join("")}
   </div></article>`;
 }
 
 function elementPentagramSvg(activation) {
   return `<article class="diagram-panel element-panel"><h3>Elements</h3><svg viewBox="0 0 300 300" role="img" aria-label="Elemental pentagram correspondences">
     <path class="pentagram-line" d="M150 25 L75 262 L270 118 L30 118 L225 262 Z"></path>
-    ${pentagramPoints.map((point) => `<g ${activeAttrs(activation, `element:${point.key}`)}><circle cx="${point.x}" cy="${point.y}" r="23"></circle><text x="${point.x}" y="${point.y + 4}">${point.label}</text></g>`).join("")}
+    ${pentagramPoints.map((point) => `<g ${activeAttrs(activation, `element:${point.key}`, point.label)}><circle cx="${point.x}" cy="${point.y}" r="23"></circle><text x="${point.x}" y="${point.y + 4}">${point.label}</text></g>`).join("")}
   </svg></article>`;
 }
 
 function hebrewLetterFrame(activation) {
   return `<article class="diagram-panel hebrew-panel"><h3>Hebrew Letters</h3><div class="hebrew-grid">
-    ${hebrewLetters.map((letter) => `<div ${activeAttrs(activation, `hebrew:${letter.key}`)}><span>${letter.glyph}</span><small>${titleCase(letter.key)}</small></div>`).join("")}
+    ${hebrewLetters.map((letter) => `<div ${activeAttrs(activation, `hebrew:${letter.key}`, titleCase(letter.key))}><span>${letter.glyph}</span><small>${titleCase(letter.key)}</small></div>`).join("")}
   </div></article>`;
+}
+
+function showDashboardTooltip(event) {
+  const target = event.target.closest?.("[data-tooltip-title]");
+  if (!target || !dashboardVisuals.contains(target)) return;
+
+  const count = Number(target.dataset.tooltipCount ?? 0);
+  const cards = target.dataset.tooltipCards ? target.dataset.tooltipCards.split("|").filter(Boolean) : [];
+  dashboardTooltip.replaceChildren(
+    tooltipHeading(target.dataset.tooltipTitle ?? "Correspondence"),
+    tooltipCount(count),
+    tooltipCards(cards)
+  );
+  dashboardTooltip.hidden = false;
+  moveDashboardTooltip(event);
+}
+
+function moveDashboardTooltip(event) {
+  if (dashboardTooltip.hidden) return;
+
+  const margin = 16;
+  const { innerWidth, innerHeight } = window;
+  const rect = dashboardTooltip.getBoundingClientRect();
+  const targetRect = event.target?.getBoundingClientRect?.();
+  const anchorX = typeof event.clientX === "number" && event.clientX > 0
+    ? event.clientX
+    : (targetRect?.right ?? margin);
+  const anchorY = typeof event.clientY === "number" && event.clientY > 0
+    ? event.clientY
+    : (targetRect?.top ?? margin);
+  const x = Math.min(anchorX + margin, innerWidth - rect.width - margin);
+  const y = Math.min(anchorY + margin, innerHeight - rect.height - margin);
+
+  dashboardTooltip.style.left = `${Math.max(margin, x)}px`;
+  dashboardTooltip.style.top = `${Math.max(margin, y)}px`;
+}
+
+function hideDashboardTooltip(event) {
+  const from = event.target.closest?.("[data-tooltip-title]");
+  const to = event.relatedTarget?.closest?.("[data-tooltip-title]");
+
+  if (event.type === "mouseout" && from && to === from) {
+    return;
+  }
+
+  dashboardTooltip.hidden = true;
+}
+
+function tooltipHeading(text) {
+  const heading = document.createElement("h4");
+  heading.textContent = text;
+  return heading;
+}
+
+function tooltipCount(count) {
+  const paragraph = document.createElement("p");
+  paragraph.textContent = `${count} ${count === 1 ? "activation" : "activations"}`;
+  return paragraph;
+}
+
+function tooltipCards(cards) {
+  if (!cards.length) {
+    const empty = document.createElement("p");
+    empty.className = "tooltip-empty";
+    empty.textContent = "No cards in the current draw.";
+    return empty;
+  }
+
+  const list = document.createElement("ul");
+  list.replaceChildren(...cards.map((card) => {
+    const item = document.createElement("li");
+    item.textContent = card;
+    return item;
+  }));
+  return list;
+}
+
+function labelForActivationKey(key) {
+  const [type, value] = key.split(":");
+  if (type === "path") return `Path ${value}`;
+  return titleCase(value?.replace(/-/g, " ") ?? key);
+}
+
+function escapeAttribute(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 function setActiveDashboardSubview(view) {
