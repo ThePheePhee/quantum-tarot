@@ -93,6 +93,8 @@ dashboardVisuals.addEventListener("mousemove", moveDashboardTooltip);
 dashboardVisuals.addEventListener("mouseout", hideDashboardTooltip);
 dashboardVisuals.addEventListener("focusin", showDashboardTooltip);
 dashboardVisuals.addEventListener("focusout", hideDashboardTooltip);
+dashboardVisuals.addEventListener("click", toggleMathPanel);
+dashboardVisuals.addEventListener("keydown", handleMathPanelKeydown);
 
 async function refreshStatus() {
   const response = await fetch("/api/status");
@@ -775,12 +777,13 @@ function arcanaPanel(draw) {
     { label: "Pip + Ace", value: pip, expected: 40 / 78 * 100, color: "#8e6ee8" }
   ];
 
-  return `<article class="math-panel arcana-panel">
+  return `<article class="math-panel arcana-panel" data-math-panel tabindex="0" role="button" aria-expanded="false">
     <h3>Draw Makeup</h3>
     <div class="donut-row">
       <div class="donut" style="${donutStyle(donutItems)}"><span>${total}</span></div>
       <div class="metric-list">${items.map((item) => metricLine(item, total)).join("")}</div>
     </div>
+    ${expectedDetail(items, total)}
   </article>`;
 }
 
@@ -798,12 +801,13 @@ function suitPanel(draw) {
   }));
   const total = Math.max(1, minor.length);
 
-  return `<article class="math-panel suit-panel">
+  return `<article class="math-panel suit-panel" data-math-panel tabindex="0" role="button" aria-expanded="false">
     <h3>Suit Distribution</h3>
     <div class="suit-bars">${suitsData.map((item) => `
       <div class="suit-bar" style="--bar:${(item.value / total * 100).toFixed(2)}%;--expected:${item.expected}%;--tone:${item.color}">
-        <span>${item.label}</span><i></i><strong>${item.value}</strong><small>exp ${item.expected.toFixed(0)}%</small>
+        <span>${item.label}</span><i></i><strong>${item.value}</strong><small>${percent(item.value, total).toFixed(0)}%</small>
       </div>`).join("")}</div>
+    ${expectedDetail(suitsData, total)}
   </article>`;
 }
 
@@ -816,12 +820,13 @@ function treeBalancePanel(activation) {
   ];
   const total = Math.max(1, pillars.reduce((sum, item) => sum + item.value, 0));
 
-  return `<article class="math-panel tree-math-panel">
+  return `<article class="math-panel tree-math-panel" data-math-panel tabindex="0" role="button" aria-expanded="false">
     <h3>Tree Balance</h3>
     <div class="balance-triptych">${pillars.map((item) => `
       <div style="--bar:${(item.value / total * 100).toFixed(2)}%;--expected:${item.expected}%;--tone:${item.color}">
-        <i></i><span>${item.label}</span><strong>${item.value}</strong><small>exp ${item.expected.toFixed(0)}%</small>
+        <i></i><span>${item.label}</span><strong>${item.value}</strong><small>${percent(item.value, total).toFixed(0)}%</small>
       </div>`).join("")}</div>
+    ${expectedDetail(pillars, total)}
   </article>`;
 }
 
@@ -834,12 +839,13 @@ function abyssPanel(activation) {
   ];
   const total = Math.max(1, zones.reduce((sum, item) => sum + item.value, 0));
 
-  return `<article class="math-panel abyss-panel">
+  return `<article class="math-panel abyss-panel" data-math-panel tabindex="0" role="button" aria-expanded="false">
     <h3>Abyss Relation</h3>
     <div class="abyss-stack">${zones.map((item) => `
       <div style="--share:${(item.value / total * 100).toFixed(2)}%;--expected:${item.expected}%;--tone:${item.color}">
-        <span>${item.label}</span><i></i><strong>${item.value}</strong><small>exp ${item.expected.toFixed(0)}%</small>
+        <span>${item.label}</span><i></i><strong>${item.value}</strong><small>${percent(item.value, total).toFixed(0)}%</small>
       </div>`).join("")}</div>
+    ${expectedDetail(zones, total)}
   </article>`;
 }
 
@@ -864,12 +870,27 @@ function metricLine(item, total) {
     <span>${item.label}</span>
     <i></i>
     <strong>${item.value}</strong>
-    <small>${percent(item.value, total).toFixed(0)}% / exp ${item.expected.toFixed(0)}%</small>
+    <small>${percent(item.value, total).toFixed(0)}%</small>
   </div>`;
 }
 
 function percent(value, total) {
   return total ? value / total * 100 : 0;
+}
+
+function expectedDetail(items, total) {
+  return `<div class="math-detail" aria-hidden="true">
+    ${items.map((item) => {
+      const observed = percent(item.value, total);
+      const delta = observed - item.expected;
+      return `<div class="detail-row" style="--tone:${item.color};--bar:${observed}%;--expected:${item.expected}%">
+        <span>${item.label}</span>
+        <i></i>
+        <strong>${observed.toFixed(1)}%</strong>
+        <small>${delta >= 0 ? "+" : ""}${delta.toFixed(1)} vs exp</small>
+      </div>`;
+    }).join("")}
+  </div>`;
 }
 
 function treePillarCount(activation, pillar) {
@@ -1042,6 +1063,32 @@ function hideDashboardTooltip(event) {
   }
 
   dashboardTooltip.hidden = true;
+}
+
+function toggleMathPanel(event) {
+  const panel = event.target.closest?.("[data-math-panel]");
+  if (!panel || !dashboardVisuals.contains(panel)) return;
+
+  setMathPanelExpanded(panel, !panel.classList.contains("expanded"));
+}
+
+function handleMathPanelKeydown(event) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+
+  const panel = event.target.closest?.("[data-math-panel]");
+  if (!panel || !dashboardVisuals.contains(panel)) return;
+
+  event.preventDefault();
+  setMathPanelExpanded(panel, !panel.classList.contains("expanded"));
+}
+
+function setMathPanelExpanded(panel, expanded) {
+  for (const item of dashboardVisuals.querySelectorAll("[data-math-panel]")) {
+    const isTarget = item === panel && expanded;
+    item.classList.toggle("expanded", isTarget);
+    item.setAttribute("aria-expanded", String(isTarget));
+    item.querySelector(".math-detail")?.setAttribute("aria-hidden", String(!isTarget));
+  }
 }
 
 function tooltipHeading(text) {
