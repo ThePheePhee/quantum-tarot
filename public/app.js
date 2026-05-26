@@ -1,5 +1,7 @@
 const drawButton = document.querySelector("#drawButton");
 const drawCountInput = document.querySelector("#drawCount");
+const drawModeSelect = document.querySelector("#drawMode");
+const deckCountInput = document.querySelector("#deckCount");
 const statusText = document.querySelector("#statusText");
 const spread = document.querySelector("#spread");
 const receiptState = document.querySelector("#receiptState");
@@ -93,8 +95,8 @@ async function refreshStatus() {
 
 async function requestDraw() {
   try {
-    const count = normalizeDrawCount();
-    const result = await postJson("/api/draw", { count });
+    const settings = normalizeDrawSettings();
+    const result = await postJson("/api/draw", settings);
     renderSpread(result.cards);
     statusText.textContent = `Spread drawn from seed ${result.seedVersion}.`;
     await loadDashboard();
@@ -352,15 +354,31 @@ function emptyMessage(message) {
 }
 
 function normalizeDrawCount() {
-  const value = Number(drawCountInput.value || 3);
-  return Number.isSafeInteger(value) ? Math.max(1, Math.min(100, value)) : 3;
+  return normalizeDrawSettings().count;
 }
 
-drawCountInput.addEventListener("input", () => {
-  const count = normalizeDrawCount();
-  drawCountInput.value = String(count);
-  drawButton.textContent = `Draw ${count} ${count === 1 ? "card" : "cards"}`;
-});
+drawCountInput.addEventListener("input", syncDrawControls);
+drawModeSelect.addEventListener("change", syncDrawControls);
+deckCountInput.addEventListener("input", syncDrawControls);
+
+function normalizeDrawSettings() {
+  const mode = drawModeSelect.value;
+  const decks = Math.max(1, Math.min(20, Number(deckCountInput.value || 1)));
+  const requestedCount = Math.max(1, Number(drawCountInput.value || 3));
+  const max = mode === "single" ? 78 : mode === "multi" ? decks * 78 : Number.POSITIVE_INFINITY;
+  const count = Math.min(requestedCount, max);
+
+  return { mode, decks, count };
+}
+
+function syncDrawControls() {
+  const settings = normalizeDrawSettings();
+  deckCountInput.value = String(settings.decks);
+  deckCountInput.closest("label").hidden = settings.mode !== "multi";
+  drawCountInput.max = settings.mode === "replacement" ? "" : String(settings.mode === "single" ? 78 : settings.decks * 78);
+  drawCountInput.value = String(settings.count);
+  drawButton.textContent = `Draw ${settings.count} ${settings.count === 1 ? "card" : "cards"}`;
+}
 
 function createActivationModel(correspondences) {
   const counts = new Map();
@@ -442,12 +460,12 @@ const sephiroth = [
 const treePaths = [
   ["11", 150, 28, 230, 82], ["12", 150, 28, 70, 82], ["13", 150, 28, 150, 205],
   ["14", 230, 82, 70, 82], ["15", 230, 82, 150, 205], ["16", 70, 82, 150, 205],
-  ["17", 230, 82, 230, 155], ["18", 70, 82, 70, 155], ["19", 230, 155, 70, 155],
+  ["17", 230, 82, 230, 155], ["18", 70, 82, 70, 155], ["19", 70, 155, 230, 155],
   ["20", 230, 155, 150, 205], ["21", 70, 155, 150, 205], ["22", 230, 155, 230, 270],
   ["23", 70, 155, 70, 270], ["24", 150, 205, 230, 270], ["25", 150, 205, 70, 270],
-  ["26", 70, 155, 230, 270], ["27", 230, 155, 70, 270], ["28", 230, 270, 150, 328],
-  ["29", 70, 270, 150, 328], ["30", 150, 205, 150, 328], ["31", 150, 328, 150, 388],
-  ["32", 70, 270, 230, 270]
+  ["26", 150, 205, 150, 328], ["27", 70, 270, 230, 270], ["28", 230, 270, 150, 328],
+  ["29", 230, 270, 150, 388], ["30", 70, 270, 150, 328], ["31", 70, 270, 150, 388],
+  ["32", 150, 328, 150, 388]
 ];
 
 const zodiacSigns = [
@@ -507,7 +525,7 @@ function renderDashboardVisuals(activation) {
 function activeAttrs(activation, key) {
   const count = activation.count(key);
   const strength = activation.strength(key);
-  return `data-count="${count}" style="--strength:${strength}" class="${count ? "active" : ""}"`;
+  return `data-count="${count}" style="--strength:${strength}" class="${count ? "active" : ""}" data-label="${count ? count : ""}"`;
 }
 
 function treeOfLifeSvg(activation) {
@@ -557,3 +575,4 @@ function setActiveDashboardSubview(view) {
 }
 
 renderDashboardVisuals(createActivationModel([]));
+syncDrawControls();

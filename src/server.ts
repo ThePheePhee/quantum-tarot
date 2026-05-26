@@ -39,6 +39,8 @@ interface LocalSeedRequest {
 
 interface DrawRequest {
   readonly count?: unknown;
+  readonly mode?: unknown;
+  readonly decks?: unknown;
 }
 
 let rng: SeededRng | null = null;
@@ -223,16 +225,26 @@ async function handleDraw(request: IncomingMessage, response: ServerResponse): P
     return sendJson(response, { error: "Seed local entropy before drawing." }, 409);
   }
 
-  const drawRequest = (await readOptionalJsonBody(request)) as DrawRequest;
-  const count = normalizeDrawCount(drawRequest.count);
-  const numbers = drawNumbersAcrossDeckCycles(rng, count);
-  const cards = numbers.map((number, index) => ({
-    position: positionLabel(index, count),
-    ...getCardByNumber(number)
-  }));
-  latestDraw = cards;
+  try {
+    const drawRequest = (await readOptionalJsonBody(request)) as DrawRequest;
+    const mode = normalizeDrawMode(drawRequest.mode);
+    const decks = normalizeDeckCount(drawRequest.decks);
+    const count = normalizeDrawCount(drawRequest.count, mode, decks);
+    const numbers = drawNumbers(rng, count, mode, decks);
+    const cards = numbers.map((number, index) => ({
+      position: positionLabel(index, count),
+      ...getCardByNumber(number)
+    }));
+    latestDraw = cards;
 
-  return sendJson(response, { seedVersion, cards });
+    return sendJson(response, { seedVersion, cards });
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return sendJson(response, { error: error.message }, error.status);
+    }
+
+    throw error;
+  }
 }
 
 async function handleDashboard(response: ServerResponse): Promise<void> {
@@ -387,20 +399,51 @@ function localSeedBytes(timingSum: number): Uint8Array {
   return bytes;
 }
 
-function normalizeDrawCount(value: unknown): number {
+function normalizeDrawCount(value: unknown, mode: string, decks: number): number {
   const count = Number(value ?? 3);
 
-  if (!Number.isSafeInteger(count) || count < 1 || count > 100) {
-    throw new HttpError("Draw count must be an integer between 1 and 100.", 400);
+  if (!Number.isSafeInteger(count) || count < 1) {
+    throw new HttpError("Draw count must be a positive integer.", 400);
+  }
+
+  if (mode === "single" && count > 78) {
+    throw new HttpError("A single deck without replacement can draw at most 78 cards.", 400);
+  }
+
+  if (mode === "multi" && count > decks * 78) {
+    throw new HttpError(`With ${decks} decks, the maximum draw is ${decks * 78} cards.`, 400);
   }
 
   return count;
 }
 
-function drawNumbersAcrossDeckCycles(provider: SeededRng, count: number): number[] {
-  const numbers: number[] = [];
+function normalizeDrawMode(value: unknown): "single" | "multi" | "replacement" {
+  if (value === "single" || value === "multi" || value === "replacement") {
+    return value;
+  }
 
-  while (numbers.length < count) {
+  return "single";
+}
+
+function normalizeDeckCount(value: unknown): number {
+  const decks = Number(value ?? 1);
+
+  if (!Number.isSafeInteger(decks) || decks < 1 || decks > 20) {
+    throw new HttpError("Deck count must be an integer between 1 and 20.", 400);
+  }
+
+  return decks;
+}
+
+function drawNumbers(provider: SeededRng, count: number, mode: string, decks: number): number[] {
+  if (mode === "replacement") {
+    return Array.from({ length: count }, () => Math.floor(provider.nextFloat() * 78) + 1);
+  }
+
+  const numbers: number[] = [];
+  const cycles = mode === "multi" ? decks : 1;
+
+  for (let cycle = 0; cycle < cycles && numbers.length < count; cycle += 1) {
     const remaining = count - numbers.length;
     numbers.push(...drawDistinctNumbers(provider, Math.min(remaining, 78), 78));
   }

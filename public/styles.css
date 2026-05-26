@@ -145,7 +145,8 @@ h1 {
   padding: 22px 0;
 }
 
-.draw-count {
+.draw-count,
+.draw-mode {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -156,19 +157,25 @@ h1 {
   background: rgba(10, 8, 8, 0.74);
 }
 
-.draw-count span {
+.draw-count span,
+.draw-mode span {
   color: var(--muted);
   font: 700 0.68rem/1 system-ui, sans-serif;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.draw-count input {
+.draw-count input,
+.draw-mode select {
   width: 3.5rem;
   border: 0;
   color: var(--gold);
   background: transparent;
   font: 700 1rem/1 system-ui, sans-serif;
+}
+
+.draw-mode select {
+  width: min(15rem, 42vw);
 }
 
 .tabs,
@@ -422,12 +429,14 @@ h1 {
 .diagram-panel .active circle,
 .planet-frame .active,
 .hebrew-grid .active {
-  filter: drop-shadow(0 0 calc(3px + 9px * var(--strength)) rgba(202, 164, 90, 0.72));
+  filter:
+    drop-shadow(0 0 calc(5px + 12px * var(--strength)) rgba(202, 164, 90, 0.82))
+    drop-shadow(0 0 calc(10px + 20px * var(--strength)) rgba(111, 20, 24, 0.42));
 }
 
 .diagram-panel line.active {
-  stroke: rgba(246, 220, 160, calc(0.32 + 0.4 * var(--strength)));
-  stroke-width: calc(2px + 2px * var(--strength));
+  stroke: rgba(246, 220, 160, calc(0.55 + 0.35 * var(--strength)));
+  stroke-width: calc(2.5px + 3px * var(--strength));
 }
 
 .diagram-panel g circle {
@@ -438,8 +447,34 @@ h1 {
 
 .diagram-panel g.active circle {
   fill: rgba(5, 4, 4, 0.96);
-  stroke: rgba(246, 220, 160, calc(0.52 + 0.34 * var(--strength)));
-  stroke-width: calc(1.5px + 1.8px * var(--strength));
+  stroke: rgba(246, 220, 160, calc(0.68 + 0.28 * var(--strength)));
+  stroke-width: calc(2px + 2.4px * var(--strength));
+}
+
+.diagram-panel g.active::after,
+.planet-frame .active::after,
+.hebrew-grid .active::after {
+  content: attr(data-count);
+}
+
+.planet-frame div,
+.hebrew-grid div {
+  position: relative;
+}
+
+.planet-frame .active::after,
+.hebrew-grid .active::after {
+  position: absolute;
+  top: -6px;
+  right: -3px;
+  min-width: 1.2rem;
+  padding: 2px 4px;
+  border: 1px solid rgba(246, 220, 160, 0.78);
+  border-radius: 999px;
+  color: var(--ink);
+  background: rgba(111, 20, 24, 0.92);
+  font: 700 0.62rem/1 system-ui, sans-serif;
+  text-align: center;
 }
 
 .diagram-panel text {
