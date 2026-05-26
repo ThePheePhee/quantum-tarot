@@ -14,6 +14,7 @@ const receiptTiming = document.querySelector("#receiptTiming");
 const sigilPath = document.querySelector("#sigilPath");
 const phraseInput = document.querySelector("#phraseInput");
 const localSeedButton = document.querySelector("#localSeedButton");
+const clearSeedButton = document.querySelector("#clearSeedButton");
 const localStatus = document.querySelector("#localStatus");
 const drawTab = document.querySelector("#drawTab");
 const dashboardTab = document.querySelector("#dashboardTab");
@@ -67,6 +68,8 @@ phraseInput.addEventListener("input", () => {
 localSeedButton.addEventListener("click", async () => {
   await requestLocalSeed("/api/reseed-local", localSeedButton, "Local timing seed received.");
 });
+
+clearSeedButton.addEventListener("click", requestClearSeed);
 
 drawTab.addEventListener("click", () => {
   setActiveView("draw");
@@ -131,6 +134,27 @@ async function requestLocalSeed(path, button, successMessage) {
   }
 }
 
+async function requestClearSeed() {
+  setBusy(clearSeedButton, true);
+  statusText.textContent = "Clearing local seed...";
+
+  try {
+    await postJson("/api/clear-seed");
+    seeded = false;
+    renderReceipt(null);
+    renderInitialSpread();
+    dashboardStatus.textContent = "Draw cards to load correspondences.";
+    correspondenceList.replaceChildren();
+    renderDashboardVisuals(createActivationModel([]));
+    statusText.textContent = "Local seed cleared.";
+  } catch (error) {
+    statusText.textContent = error.message;
+  } finally {
+    setBusy(clearSeedButton, false);
+    syncDrawControls();
+  }
+}
+
 function renderSpread(cards) {
   spread.style.setProperty("--card-count", String(cards.length));
   spread.replaceChildren(
@@ -164,6 +188,21 @@ function renderSpread(cards) {
     })
   );
   drawButton.textContent = `Draw ${cards.length} ${cards.length === 1 ? "card" : "cards"}`;
+}
+
+function renderInitialSpread() {
+  spread.style.removeProperty("--card-count");
+  spread.innerHTML = `
+    <article class="card-slot">
+      <div class="card-back"><span>Past</span></div>
+    </article>
+    <article class="card-slot">
+      <div class="card-back"><span>Present</span></div>
+    </article>
+    <article class="card-slot">
+      <div class="card-back"><span>Future</span></div>
+    </article>
+  `;
 }
 
 async function postJson(path, body) {
@@ -464,6 +503,7 @@ function syncDrawControls() {
   const valid = Boolean(decks && decks <= 20 && count && count <= max);
 
   drawButton.disabled = !seeded || !valid;
+  clearSeedButton.disabled = !seeded;
   drawButton.title = valid ? "" : drawControlMessage(decks, count, max, replacement);
   drawButton.textContent = count
     ? `Draw ${count} ${count === 1 ? "card" : "cards"}`

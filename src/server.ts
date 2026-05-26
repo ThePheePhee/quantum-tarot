@@ -73,6 +73,10 @@ const server = createServer(async (request, response) => {
       return handleLocalReseed(request, response);
     }
 
+    if (request.method === "POST" && url.pathname === "/api/clear-seed") {
+      return handleClearSeed(response);
+    }
+
     if (request.method === "POST" && url.pathname === "/api/reseed-combined") {
       return sendJson(response, { error: "Combined QRNG seeding is disabled for now. Use local entropy." }, 410);
     }
@@ -168,6 +172,20 @@ async function handleLocalReseed(request: IncomingMessage, response: ServerRespo
     seeded: true,
     ...latestReceipt,
     lastReseededAt
+  });
+}
+
+function handleClearSeed(response: ServerResponse): void {
+  rng = null;
+  latestReceipt = null;
+  latestDraw = [];
+  lastReseededAt = 0;
+
+  return sendJson(response, {
+    seeded: false,
+    seedVersion,
+    lastReseededAt: null,
+    latestReceipt: null
   });
 }
 
