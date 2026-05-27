@@ -396,6 +396,8 @@ function contentType(pathname: string): string {
       return "text/javascript; charset=utf-8";
     case ".html":
       return "text/html; charset=utf-8";
+    case ".webp":
+      return "image/webp";
     default:
       return "application/octet-stream";
   }

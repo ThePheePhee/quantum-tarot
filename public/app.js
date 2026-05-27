@@ -874,7 +874,7 @@ function pathOrientationPanel(activation) {
 }
 
 function isCourtCard(card) {
-  return ["Page", "Knight", "Queen", "King"].includes(card.rank);
+  return ["Princess", "Prince", "Queen", "Knight"].includes(card.rank);
 }
 
 function donutStyle(items) {

@@ -10,42 +10,36 @@ export interface TarotCard {
   readonly imageUrl: string;
 }
 
-const imageBaseUrl = "https://www.sacred-texts.com/tarot/pkt/img";
+const imageBaseUrl = "/cards/thoth";
 
 const majorArcana = [
-  ["ar00", "The Fool"],
-  ["ar01", "The Magician"],
-  ["ar02", "The High Priestess"],
-  ["ar03", "The Empress"],
-  ["ar04", "The Emperor"],
-  ["ar05", "The Hierophant"],
-  ["ar06", "The Lovers"],
-  ["ar07", "The Chariot"],
-  ["ar08", "Strength"],
-  ["ar09", "The Hermit"],
-  ["ar10", "Wheel of Fortune"],
-  ["ar11", "Justice"],
-  ["ar12", "The Hanged Man"],
-  ["ar13", "Death"],
-  ["ar14", "Temperance"],
-  ["ar15", "The Devil"],
-  ["ar16", "The Tower"],
-  ["ar17", "The Star"],
-  ["ar18", "The Moon"],
-  ["ar19", "The Sun"],
-  ["ar20", "Judgement"],
-  ["ar21", "The World"]
+  ["major-00", "The Fool"],
+  ["major-01", "The Magus"],
+  ["major-02", "The Priestess"],
+  ["major-03", "The Empress"],
+  ["major-04", "The Emperor"],
+  ["major-05", "The Hierophant"],
+  ["major-06", "The Lovers"],
+  ["major-07", "The Chariot"],
+  ["major-08", "Adjustment"],
+  ["major-09", "The Hermit"],
+  ["major-10", "Fortune"],
+  ["major-11", "Lust"],
+  ["major-12", "The Hanged Man"],
+  ["major-13", "Death"],
+  ["major-14", "Art"],
+  ["major-15", "The Devil"],
+  ["major-16", "The Tower"],
+  ["major-17", "The Star"],
+  ["major-18", "The Moon"],
+  ["major-19", "The Sun"],
+  ["major-20", "The Aeon"],
+  ["major-21", "The Universe"]
 ] as const;
 
 const suits = ["wands", "swords", "cups", "disks"] as const;
-const suitImagePrefixes: Record<TarotSuit, string> = {
-  wands: "wa",
-  swords: "sw",
-  cups: "cu",
-  disks: "pe"
-};
-const ranks = ["Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Page", "Knight", "Queen", "King"] as const;
-const rankImageSuffixes = ["ac", "02", "03", "04", "05", "06", "07", "08", "09", "10", "pa", "kn", "qu", "ki"] as const;
+const ranks = ["Ace", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Princess", "Prince", "Queen", "Knight"] as const;
+const rankImageSuffixes = ["ace", "02", "03", "04", "05", "06", "07", "08", "09", "10", "princess", "prince", "queen", "knight"] as const;
 
 export const tarotDeck: readonly TarotCard[] = [
   ...majorArcana.map(([imageName, name], index) => ({
@@ -53,7 +47,7 @@ export const tarotDeck: readonly TarotCard[] = [
     id: imageName,
     name,
     arcana: "major" as const,
-    imageUrl: `${imageBaseUrl}/${imageName}.jpg`
+    imageUrl: `${imageBaseUrl}/${imageName}.webp`
   })),
   ...suits.flatMap((suit, suitIndex) =>
     ranks.map((rank, rankIndex) => ({
@@ -63,7 +57,7 @@ export const tarotDeck: readonly TarotCard[] = [
       arcana: "minor" as const,
       suit,
       rank,
-      imageUrl: `${imageBaseUrl}/${suitImagePrefixes[suit]}${rankImageSuffixes[rankIndex]}.jpg`
+      imageUrl: `${imageBaseUrl}/${suit}-${rankImageSuffixes[rankIndex]}.webp`
     }))
   )
 ];

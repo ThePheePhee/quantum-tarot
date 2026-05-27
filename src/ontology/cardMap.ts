@@ -39,10 +39,10 @@ const smallRankByName: Record<string, string> = {
 };
 
 const courtRankByName: Record<string, string> = {
-  Page: "princess",
-  Knight: "prince",
+  Princess: "princess",
+  Prince: "prince",
   Queen: "queen",
-  King: "knight"
+  Knight: "knight"
 };
 
 export function ontologyCardIdForTarotCard(card: TarotCard): string | null {
