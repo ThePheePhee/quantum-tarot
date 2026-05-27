@@ -145,6 +145,67 @@ h1 {
   padding: 22px 0;
 }
 
+.control-help-wrap,
+.label-with-help {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.help-bubble {
+  position: relative;
+  z-index: 5;
+}
+
+.help-bubble summary {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1px solid rgba(202, 164, 90, 0.42);
+  border-radius: 50%;
+  color: var(--gold);
+  background: rgba(10, 8, 8, 0.88);
+  font: 800 0.78rem/1 system-ui, sans-serif;
+  cursor: pointer;
+  list-style: none;
+}
+
+.help-bubble summary::-webkit-details-marker {
+  display: none;
+}
+
+.help-bubble summary:focus-visible {
+  outline: 1px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.help-bubble p {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: min(22rem, calc(100vw - 40px));
+  margin: 0;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid rgba(202, 164, 90, 0.34);
+  border-radius: 7px;
+  color: var(--ink);
+  background:
+    linear-gradient(180deg, rgba(111, 20, 24, 0.22), transparent 90px),
+    rgba(7, 6, 6, 0.98);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42), 0 0 20px rgba(202, 164, 90, 0.08);
+  font: 600 0.82rem/1.55 system-ui, sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.label-with-help .help-bubble p {
+  top: calc(100% + 10px);
+  left: auto;
+  right: 0;
+}
+
 .draw-count,
 .replacement-toggle {
   display: flex;
@@ -454,7 +515,7 @@ h1 {
 }
 
 .diagram-panel line,
-.diagram-panel .pentagram-line,
+.diagram-panel .element-axis,
 .diagram-panel .diagram-ring {
   fill: none;
   stroke: rgba(202, 164, 90, 0.22);
@@ -480,7 +541,7 @@ h1 {
 }
 
 .diagram-panel line.active,
-.diagram-panel .active circle,
+.diagram-panel .active circle:not(.element-aura),
 .planet-frame .active,
 .hebrew-grid .active {
   filter:
@@ -525,8 +586,38 @@ h1 {
   font-size: 11px;
 }
 
-.pentagram-line {
-  stroke-width: 2.4 !important;
+.element-field .element-axis {
+  stroke-width: 1.4;
+  stroke-dasharray: 4 8;
+}
+
+.element-rose {
+  cursor: help;
+  fill: rgba(202, 164, 90, calc(0.12 + 0.16 * var(--balance)));
+  stroke: rgba(246, 220, 160, calc(0.56 + 0.28 * var(--balance)));
+  stroke-width: 2.4;
+  filter:
+    drop-shadow(0 0 10px rgba(202, 164, 90, 0.2))
+    drop-shadow(0 0 calc(8px + 18px * var(--balance)) rgba(246, 220, 160, 0.2));
+  pointer-events: visiblePainted;
+}
+
+.element-node .element-aura {
+  fill: var(--heat);
+  opacity: calc(0.08 + 0.32 * var(--strength));
+  stroke: none;
+  filter:
+    drop-shadow(0 0 calc(5px + 18px * var(--strength)) var(--heat))
+    drop-shadow(0 0 calc(10px + 30px * var(--strength)) color-mix(in srgb, var(--heat), transparent 62%));
+}
+
+.element-node circle:not(.element-aura) {
+  stroke: var(--heat);
+}
+
+.element-percent {
+  fill: var(--gold) !important;
+  font-size: 7px !important;
 }
 
 .planet-frame {
@@ -600,9 +691,9 @@ h1 {
 
 .heatmap-legend {
   grid-column: 1 / -1;
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   min-width: 0;
   padding: 12px 14px;
@@ -628,9 +719,9 @@ h1 {
 
 .legend-continuum {
   position: relative;
-  min-height: 42px;
+  min-height: 34px;
   padding-top: 4px;
-  padding-bottom: 22px;
+  padding-bottom: 16px;
 }
 
 .legend-gradient {
@@ -648,10 +739,15 @@ h1 {
   left: var(--position);
   display: grid !important;
   justify-items: center;
-  width: max-content;
+  width: 1.6rem;
   transform: translateX(-50%);
   background: transparent !important;
   box-shadow: none !important;
+}
+
+.legend-gradient + .legend-tick {
+  justify-items: start;
+  transform: translateX(0);
 }
 
 .legend-tick:last-child {
@@ -669,8 +765,10 @@ h1 {
 }
 
 .legend-tick small {
-  margin-top: 4px;
+  margin-top: 3px;
   white-space: nowrap;
+  font: 700 0.62rem/1 system-ui, sans-serif;
+  color: var(--ink);
 }
 
 .legend-scale p {
@@ -1118,7 +1216,7 @@ h1 {
 
   .heatmap-legend {
     align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .legend-scale {

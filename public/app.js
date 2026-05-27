@@ -33,6 +33,7 @@ const dashboardTooltip = document.createElement("div");
 const timingMs = [];
 let seeded = false;
 let previousPhraseLength = 0;
+let ontologySnapshotRequested = false;
 
 dashboardTooltip.className = "dashboard-tooltip";
 dashboardTooltip.hidden = true;
@@ -85,7 +86,7 @@ dashboardTab.addEventListener("click", async () => {
   await loadDashboard();
 });
 
-refreshDashboardButton.addEventListener("click", loadDashboard);
+refreshDashboardButton.addEventListener("click", () => loadDashboard({ refreshSnapshot: true }));
 visualDashboardTab.addEventListener("click", () => setActiveDashboardSubview("visual"));
 listDashboardTab.addEventListener("click", () => setActiveDashboardSubview("list"));
 dashboardVisuals.addEventListener("mouseover", showDashboardTooltip);
@@ -373,11 +374,15 @@ function setActiveView(view) {
   dashboardView.classList.toggle("active", dashboardActive);
 }
 
-async function loadDashboard() {
-  dashboardStatus.textContent = "Loading ontology correspondences...";
+async function loadDashboard({ refreshSnapshot = false } = {}) {
+  const shouldRefreshSnapshot = refreshSnapshot || !ontologySnapshotRequested;
+  ontologySnapshotRequested = true;
+  dashboardStatus.textContent = shouldRefreshSnapshot
+    ? "Loading ontology snapshot..."
+    : "Loading ontology correspondences...";
 
   try {
-    const dashboard = await fetchJson("/api/dashboard");
+    const dashboard = await fetchJson(`/api/dashboard${shouldRefreshSnapshot ? "?refreshSnapshot=1" : ""}`);
 
     if (!dashboard.draw.length) {
       dashboardStatus.textContent = "Draw cards to load correspondences.";
@@ -386,7 +391,7 @@ async function loadDashboard() {
     }
 
     dashboardStatus.textContent = dashboard.connected
-      ? `${dashboard.correspondences.length} correspondences loaded from Baserow.`
+      ? `${dashboard.correspondences.length} correspondences loaded from ontology snapshot.`
       : dashboard.error ?? "Ontology database is not connected.";
     renderCorrespondences(dashboard.correspondences, dashboard.draw);
   } catch (error) {
@@ -608,14 +613,15 @@ function heatLegend(heatScale) {
   const steps = heatScale.map(({ count, color, position }) => ({
     color,
     position,
-    label: `${count} ${count === 1 ? "activation" : "activations"}`
+    label: String(count),
+    description: `${count} ${count === 1 ? "activation" : "activations"}`
   }));
 
   return `<article class="heatmap-legend"><h3>Activation Heat</h3><div class="legend-scale">
     ${steps.length
       ? `<div class="legend-continuum" aria-label="Continuous activation heat scale">
           <span class="legend-gradient"></span>
-          ${steps.map((step) => `<span class="legend-tick" style="--heat:${step.color};--position:${step.position}%"><i></i><small>${step.label}</small></span>`).join("")}
+          ${steps.map((step) => `<span class="legend-tick" style="--heat:${step.color};--position:${step.position}%" aria-label="${step.description}"><i></i><small>${step.label}</small></span>`).join("")}
         </div>`
       : "<p>No activations yet</p>"}
   </div></article>`;
@@ -630,7 +636,7 @@ function activationKeys(correspondence) {
   ].join(" ").toLowerCase();
   const keys = [];
 
-  for (const element of ["spirit", "fire", "water", "air", "earth"]) {
+  for (const element of ["fire", "water", "air", "earth"]) {
     if (containsWord(text, element)) keys.push(`element:${element}`);
   }
 
@@ -724,25 +730,24 @@ const planets = [
   { key: "moon", entity: "&#9789;" }
 ];
 
-const pentagramPoints = [
-  { key: "spirit", label: "Spirit", x: 150, y: 25 },
-  { key: "water", label: "Water", x: 30, y: 118 },
-  { key: "fire", label: "Fire", x: 270, y: 118 },
-  { key: "earth", label: "Earth", x: 75, y: 262 },
-  { key: "air", label: "Air", x: 225, y: 262 }
+const elementalPoints = [
+  { key: "fire", label: "Fire", x: 150, y: 42, color: "#d55742" },
+  { key: "earth", label: "Earth", x: 258, y: 150, color: "#d2aa55" },
+  { key: "water", label: "Water", x: 150, y: 258, color: "#4ea3d8" },
+  { key: "air", label: "Air", x: 42, y: 150, color: "#d7dfe7" }
 ];
 
 function renderDashboardVisuals(activation, draw = []) {
   dashboardVisuals.innerHTML = `
     <section class="dashboard-overview">
-      ${heatLegend(activation.heatScale)}
       ${dashboardStats(draw, activation)}
     </section>
+    ${heatLegend(activation.heatScale)}
     <section class="diagram-grid">
       ${treeOfLifeSvg(activation)}
       ${zodiacSvg(activation)}
       ${planetaryFrame(activation)}
-      ${elementPentagramSvg(activation)}
+      ${elementFieldSvg(activation)}
       ${hebrewLetterFrame(activation)}
     </section>
   `;
@@ -775,7 +780,7 @@ function arcanaPanel(draw) {
   const items = [
     ...donutItems,
     { label: "Court", value: court, expected: 16 / 78 * 100, color: "#c43f46" },
-    { label: "Pip + Ace", value: pip, expected: 40 / 78 * 100, color: "#8e6ee8" }
+    { label: "Minor Numbered", value: pip, expected: 40 / 78 * 100, color: "#8e6ee8" }
   ];
 
   return `<article class="math-panel arcana-panel" data-math-panel tabindex="0" role="button" aria-expanded="false">
@@ -1036,11 +1041,84 @@ function planetaryFrame(activation) {
   </div></article>`;
 }
 
-function elementPentagramSvg(activation) {
-  return `<article class="diagram-panel element-panel"><h3>Elements</h3><svg viewBox="0 0 300 300" role="img" aria-label="Elemental pentagram correspondences">
-    <path class="pentagram-line" d="M150 25 L75 262 L270 118 L30 118 L225 262 Z"></path>
-    ${pentagramPoints.map((point) => `<g ${activeAttrs(activation, `element:${point.key}`, point.label)}><circle cx="${point.x}" cy="${point.y}" r="23"></circle><text x="${point.x}" y="${point.y + 4}">${point.label}</text></g>`).join("")}
+function elementFieldSvg(activation) {
+  const counts = elementalCounts(activation);
+  const normalized = normalizeElements(counts);
+  const balance = elementalBalance(normalized);
+  const rose = elementalRadarPoints(normalized);
+
+  return `<article class="diagram-panel element-panel"><h3>Elements</h3><svg class="element-field" viewBox="0 0 300 300" role="img" aria-label="Elemental balance correspondences">
+    <line class="element-axis" x1="150" y1="42" x2="150" y2="258"></line>
+    <line class="element-axis" x1="42" y1="150" x2="258" y2="150"></line>
+    <polygon class="element-rose" ${balanceAttrs(balance)} points="${rose}"></polygon>
+    ${elementalPoints.map((point) => elementNode(point, activation, normalized)).join("")}
   </svg></article>`;
+}
+
+function elementalCounts(activation) {
+  return Object.fromEntries(
+    elementalPoints.map((point) => [point.key, activation.count(`element:${point.key}`)])
+  );
+}
+
+function normalizeElements(counts) {
+  const total = Object.values(counts).reduce((sum, value) => sum + value, 0);
+
+  return Object.fromEntries(
+    elementalPoints.map((point) => [point.key, total ? counts[point.key] / total : 0])
+  );
+}
+
+function elementalRadarPoints(normalized) {
+  // Scale each element from center along the canonical cross: Fire top, Earth right, Water bottom, Air left.
+  return elementalPoints.map((point) => {
+    const radius = normalized[point.key] * 128;
+    const dx = point.x === 150 ? 0 : Math.sign(point.x - 150) * radius;
+    const dy = point.y === 150 ? 0 : Math.sign(point.y - 150) * radius;
+    return `${(150 + dx).toFixed(1)},${(150 + dy).toFixed(1)}`;
+  }).join(" ");
+}
+
+function elementalBalance(normalized) {
+  const entropy = Object.values(normalized)
+    .filter((value) => value > 0)
+    .reduce((sum, value) => sum - value * Math.log(value), 0);
+  return Math.max(0, Math.min(1, entropy / Math.log(4)));
+}
+
+function elementNode(point, activation, normalized) {
+  const count = activation.count(`element:${point.key}`);
+  const strength = normalized[point.key];
+  const cards = activation.cards(`element:${point.key}`);
+  return `<g ${elementAttrs(point, count, strength, cards)}>
+    <circle class="element-aura" cx="${point.x}" cy="${point.y}" r="${(22 + strength * 18).toFixed(1)}"></circle>
+    <circle cx="${point.x}" cy="${point.y}" r="23"></circle>
+    <text x="${point.x}" y="${point.y + 4}">${point.label}</text>
+    <text class="element-percent" x="${point.x}" y="${point.y + 20}">${Math.round(strength * 100)}%</text>
+  </g>`;
+}
+
+function elementAttrs(point, count, strength, cards) {
+  return [
+    `data-count="${count}"`,
+    `data-tooltip-title="${point.label}"`,
+    `data-tooltip-count="${count}"`,
+    `data-tooltip-detail="${Math.round(strength * 100)}% normalized"`,
+    `data-tooltip-cards="${escapeAttribute(cards.join("|"))}"`,
+    `tabindex="0"`,
+    `style="--strength:${strength.toFixed(2)};--heat:${point.color}"`,
+    `class="${count ? "active" : ""} element-node"`
+  ].join(" ");
+}
+
+function balanceAttrs(balance) {
+  return [
+    `data-tooltip-title="Elemental Balance"`,
+    `data-tooltip-count="${balance.toFixed(2)}"`,
+    `data-tooltip-detail="Derived from Fire, Water, Air, and Earth. Not a direct card correspondence."`,
+    `tabindex="0"`,
+    `style="--balance:${balance.toFixed(2)}"`
+  ].join(" ");
 }
 
 function hebrewLetterFrame(activation) {
@@ -1057,7 +1135,7 @@ function showDashboardTooltip(event) {
   const cards = target.dataset.tooltipCards ? target.dataset.tooltipCards.split("|").filter(Boolean) : [];
   dashboardTooltip.replaceChildren(
     tooltipHeading(target.dataset.tooltipTitle ?? "Correspondence"),
-    tooltipCount(count),
+    tooltipCount(target.dataset.tooltipCount ?? "0", target.dataset.tooltipDetail),
     tooltipCards(cards)
   );
   dashboardTooltip.hidden = false;
@@ -1127,9 +1205,12 @@ function tooltipHeading(text) {
   return heading;
 }
 
-function tooltipCount(count) {
+function tooltipCount(count, detail) {
   const paragraph = document.createElement("p");
-  paragraph.textContent = `${count} ${count === 1 ? "activation" : "activations"}`;
+  const numericCount = Number(count);
+  paragraph.textContent = Number.isFinite(numericCount) && Number.isInteger(numericCount)
+    ? `${numericCount} ${numericCount === 1 ? "activation" : "activations"}${detail ? ` - ${detail}` : ""}`
+    : `${count}${detail ? ` - ${detail}` : ""}`;
   return paragraph;
 }
 

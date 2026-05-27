@@ -20,6 +20,18 @@ interface BaserowListResponse {
   next: string | null;
 }
 
+interface OntologySnapshot {
+  readonly loadedAt: number;
+  readonly cards: readonly OntologyCard[];
+  readonly types: readonly CorrespondenceType[];
+  readonly correspondences: readonly Correspondence[];
+  readonly links: readonly CardCorrespondence[];
+}
+
+interface SnapshotOptions {
+  readonly refresh?: boolean;
+}
+
 export class OntologyDatabaseError extends Error {
   constructor(message: string, readonly status?: number, readonly detail?: unknown) {
     super(message);
@@ -28,19 +40,46 @@ export class OntologyDatabaseError extends Error {
 }
 
 const tableNames = ["cards", "correspondence_types", "correspondences", "card_correspondences"] as const;
+let ontologySnapshot: Promise<OntologySnapshot> | null = null;
 
-export async function getDrawCorrespondences(cards: readonly TarotCard[]): Promise<DrawCorrespondence[]> {
+export async function getDrawCorrespondences(cards: readonly TarotCard[], options: SnapshotOptions = {}): Promise<DrawCorrespondence[]> {
+  const snapshot = await getOntologySnapshot(options);
+  return correspondencesForDraw(cards, snapshot);
+}
+
+export async function getOntologySnapshot(options: SnapshotOptions = {}): Promise<OntologySnapshot> {
+  if (!ontologySnapshot || options.refresh) {
+    ontologySnapshot = loadOntologySnapshot().catch((error) => {
+      ontologySnapshot = null;
+      throw error;
+    });
+  }
+
+  return ontologySnapshot;
+}
+
+async function loadOntologySnapshot(): Promise<OntologySnapshot> {
   const tables = await tableMap();
-  const [ontologyCards, types, correspondences, links] = await Promise.all([
+  const [cards, types, correspondences, links] = await Promise.all([
     listRows(tables.cards.id, normalizeCard),
     listRows(tables.correspondence_types.id, normalizeCorrespondenceType),
     listRows(tables.correspondences.id, normalizeCorrespondence),
     listRows(tables.card_correspondences.id, normalizeCardCorrespondence)
   ]);
 
-  const cardsByStableId = new Map(ontologyCards.map((card) => [card.card_id, card]));
-  const typesById = new Map(types.map((type) => [type.id, type]));
-  const correspondencesById = new Map(correspondences.map((correspondence) => [correspondence.id, correspondence]));
+  return {
+    loadedAt: Date.now(),
+    cards,
+    types,
+    correspondences,
+    links
+  };
+}
+
+function correspondencesForDraw(cards: readonly TarotCard[], snapshot: OntologySnapshot): DrawCorrespondence[] {
+  const cardsByStableId = new Map(snapshot.cards.map((card) => [card.card_id, card]));
+  const typesById = new Map(snapshot.types.map((type) => [type.id, type]));
+  const correspondencesById = new Map(snapshot.correspondences.map((correspondence) => [correspondence.id, correspondence]));
   const selected = new Set(cards.map(ontologyCardIdForTarotCard).filter(Boolean));
 
   return cards.flatMap((card, drawIndex) => {
@@ -65,7 +104,7 @@ export async function getDrawCorrespondences(cards: readonly TarotCard[]): Promi
       }];
     }
 
-    return links
+    return snapshot.links
       .filter((link) => link.card === ontologyCard.id && link.correspondence)
       .map((link) => {
         const correspondence = correspondencesById.get(link.correspondence ?? 0);

@@ -86,7 +86,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (request.method === "GET" && url.pathname === "/api/dashboard") {
-      return handleDashboard(response);
+      return handleDashboard(response, url.searchParams.get("refreshSnapshot") === "1");
     }
 
     if (request.method === "GET") {
@@ -266,7 +266,7 @@ async function handleDraw(request: IncomingMessage, response: ServerResponse): P
   }
 }
 
-async function handleDashboard(response: ServerResponse): Promise<void> {
+async function handleDashboard(response: ServerResponse, refreshSnapshot = false): Promise<void> {
   if (latestDraw.length === 0) {
     return sendJson(response, {
       connected: Boolean(process.env.BASEROW_TOKEN && process.env.BASEROW_DATABASE_ID),
@@ -276,10 +276,11 @@ async function handleDashboard(response: ServerResponse): Promise<void> {
   }
 
   try {
-    const correspondences = await getDrawCorrespondences(latestDraw);
+    const correspondences = await getDrawCorrespondences(latestDraw, { refresh: refreshSnapshot });
 
     return sendJson(response, {
       connected: true,
+      snapshotRefreshed: refreshSnapshot,
       draw: latestDraw,
       correspondences
     });

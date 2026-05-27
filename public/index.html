@@ -35,6 +35,12 @@
       </section>
 
       <section class="controls" aria-label="Reading controls">
+        <div class="control-help-wrap">
+          <details class="help-bubble">
+            <summary aria-label="Explain draw controls">?</summary>
+            <p>Decks sets how many tarot decks are available. Drawing with replacement puts each card back after it is drawn, so repeats are possible. Cards sets how many cards to draw; without replacement, it cannot exceed decks times 78.</p>
+          </details>
+        </div>
         <label class="draw-count deck-count" for="deckCount">
           <span>Decks</span>
           <input id="deckCount" type="text" inputmode="numeric" value="1">
@@ -59,7 +65,12 @@
       <section class="view active" id="drawView">
         <section class="local-randomness" aria-label="Local randomness controls">
           <label for="phraseInput">
-            <span>Local entropy phrase</span>
+            <span class="label-with-help">Local entropy phrase
+              <details class="help-bubble">
+                <summary aria-label="Explain local entropy phrase">?</summary>
+                <p>Write a phrase of at least ten letters in the box, and then click &quot;Seed local entropy&quot; to create your own randomness for the draw. This is equivalent to shuffling the deck. The longer the phrase, the more randomness.</p>
+              </details>
+            </span>
             <input id="phraseInput" type="text" autocomplete="off" spellcheck="false" placeholder="Type at least 10 letters">
           </label>
           <div class="local-actions">
